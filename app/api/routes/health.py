@@ -30,7 +30,7 @@ async def health_check() -> Dict[str, str]:
 async def detailed_health_check(
     ollama_manager: OllamaManager = Depends(get_ollama_manager),
     rate_limiter: RateLimiter = Depends(get_rate_limiter),
-) -> Dict[str, any]:
+) -> Dict[str, Any]:
     """Detailed health check with service dependencies."""
     
     health_status = {

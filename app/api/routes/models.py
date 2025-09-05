@@ -1,7 +1,7 @@
 """Models management endpoints."""
 
 import logging
-from typing import Dict
+from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -47,7 +47,7 @@ async def get_model_info(
     model_name: str,
     ollama_manager: OllamaManager = Depends(get_ollama_manager),
     user_id: str = Depends(check_user_rate_limit),
-) -> Dict[str, any]:
+) -> Dict[str, Any]:
     """Get information about a specific model."""
     
     try:
