@@ -574,26 +574,53 @@
             
             const startTime = Date.now();
             
+            // Подготавливаем payload
+            const payload = {
+                prompt: message,
+                model: model,
+                max_tokens: 1000,
+                temperature: 0.7
+            };
+            
+            console.log('🚀 Отправка запроса:', payload);
+            
             try {
                 const response = await fetch(`${API_BASE}/chat/sync`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        prompt: message,
-                        model: model,
-                        max_tokens: 1000,
-                        temperature: 0.7
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
+                console.log('📡 Ответ сервера:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries())
+                });
+                
+                const responseText = await response.text();
+                console.log('📄 Тело ответа:', responseText);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        if (errorData.detail) {
+                            errorMessage += `\nДетали: ${JSON.stringify(errorData.detail, null, 2)}`;
+                        }
+                    } catch (e) {
+                        errorMessage += `\nОтвет сервера: ${responseText}`;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
                 
-                const data = await response.json();
+                const data = JSON.parse(responseText);
                 const responseTime = Date.now() - startTime;
+                
+                console.log('✅ Успешный ответ:', data);
                 
                 // Добавляем ответ AI
                 addMessage(data.response, 'assistant');
@@ -604,8 +631,29 @@
                 document.getElementById('responseTime').textContent = `${(responseTime / 1000).toFixed(1)}s`;
                 
             } catch (error) {
-                console.error('Chat error:', error);
-                addMessage(`Ошибка: ${error.message}`, 'assistant', true);
+                console.error('❌ Ошибка чата:', error);
+                
+                // Показываем детальную ошибку
+                let errorDisplay = error.message;
+                if (error.message.includes('Failed to fetch')) {
+                    errorDisplay = 'Не удалось подключиться к серверу. Проверьте что API запущен на http://localhost:8000';
+                } else if (error.message.includes('400')) {
+                    errorDisplay = 'Ошибка запроса (400). Проверьте параметры запроса и доступность модели.';
+                } else if (error.message.includes('500')) {
+                    errorDisplay = 'Внутренняя ошибка сервера (500). Проверьте логи API сервера.';
+                }
+                
+                addMessage(`❌ ${errorDisplay}`, 'assistant', true);
+                
+                // Логируем в консоль для отладки
+                console.group('🔍 Детали ошибки');
+                console.log('Сообщение:', message);
+                console.log('Модель:', model);
+                console.log('API URL:', `${API_BASE}/chat/sync`);
+                console.log('Payload:', payload);
+                console.log('Ошибка:', error);
+                console.groupEnd();
+                
             } finally {
                 showTyping(false);
                 sendButton.disabled = false;
