@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Игнорировать дополнительные поля из .env
 
 
 @lru_cache()
