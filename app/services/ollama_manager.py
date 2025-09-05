@@ -140,9 +140,39 @@ class OllamaManager:
         """Check if a specific model is available."""
         try:
             models_response = await self.list_models()
-            return any(model.name == model_name for model in models_response.models)
+            
+            # Check for exact match first
+            for model in models_response.models:
+                if model.name == model_name:
+                    return True
+            
+            # Check for partial match (e.g., "llama3" matches "llama3:latest")
+            for model in models_response.models:
+                if model.name.startswith(f"{model_name}:"):
+                    return True
+                    
+            return False
         except Exception:
             return False
+    
+    async def _get_full_model_name(self, model_name: str) -> Optional[str]:
+        """Get full model name from short name."""
+        try:
+            models_response = await self.list_models()
+            
+            # Check for exact match first
+            for model in models_response.models:
+                if model.name == model_name:
+                    return model.name
+            
+            # Check for partial match (e.g., "llama3" matches "llama3:latest")
+            for model in models_response.models:
+                if model.name.startswith(f"{model_name}:"):
+                    return model.name
+                    
+            return None
+        except Exception:
+            return None
     
     async def generate(
         self,
@@ -151,9 +181,13 @@ class OllamaManager:
     ) -> OllamaResponse:
         """Generate response using Ollama API with retry logic."""
         
-        # Validate model availability
-        if not await self.is_model_available(request.model):
+        # Validate model availability and get full model name
+        full_model_name = await self._get_full_model_name(request.model)
+        if not full_model_name:
             raise OllamaModelNotFoundError(f"Model '{request.model}' not found")
+        
+        # Use full model name for Ollama request
+        request.model = full_model_name
         
         session = await self._get_session()
         
@@ -197,9 +231,13 @@ class OllamaManager:
     ):
         """Generate streaming response using Ollama API."""
         
-        # Validate model availability
-        if not await self.is_model_available(request.model):
+        # Validate model availability and get full model name
+        full_model_name = await self._get_full_model_name(request.model)
+        if not full_model_name:
             raise OllamaModelNotFoundError(f"Model '{request.model}' not found")
+        
+        # Use full model name for Ollama request
+        request.model = full_model_name
         
         session = await self._get_session()
         
