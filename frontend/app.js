@@ -7,7 +7,7 @@ class GPTInfernseApp {
     constructor() {
         this.notifications = [];
         this.contextMenu = null;
-        this.currentTheme = 'dark';
+        this.currentTheme = 'light'; // По умолчанию светлая тема
         this.shortcuts = new Map();
         
         this.init();
@@ -212,12 +212,13 @@ class GPTInfernseApp {
         const toggle = document.createElement('button');
         toggle.className = 'theme-toggle tooltip';
         toggle.setAttribute('data-tooltip', 'Переключить тему');
-        toggle.innerHTML = '🌙';
+        toggle.innerHTML = this.currentTheme === 'light' ? '🌙' : '☀️';
         toggle.onclick = () => this.toggleTheme();
         
-        // Временно скрываем, так как у нас только темная тема
-        toggle.style.display = 'none';
         document.body.appendChild(toggle);
+        
+        // Устанавливаем начальную тему
+        document.documentElement.setAttribute('data-theme', this.currentTheme);
     }
     
     toggleTheme() {

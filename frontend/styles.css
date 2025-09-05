@@ -551,17 +551,40 @@
     transform: scale(1.1);
 }
 
-/* Светлая тема (для будущего использования) */
-[data-theme="light"] {
+/* Светлая тема с графитовыми акцентами */
+:root, [data-theme="light"] {
     --bg-primary: #ffffff;
     --bg-secondary: #f8f9fa;
     --bg-tertiary: #e9ecef;
     --bg-chat: #ffffff;
-    --text-primary: #212529;
+    --text-primary: #2c3e50;
     --text-secondary: #495057;
     --text-muted: #6c757d;
+    --accent: #34495e;
+    --accent-hover: #2c3e50;
     --border: #dee2e6;
     --border-light: #e9ecef;
+    --error: #dc3545;
+    --warning: #ffc107;
+    --success: #28a745;
+}
+
+/* Темная тема (альтернатива) */
+[data-theme="dark"] {
+    --bg-primary: #0f0f23;
+    --bg-secondary: #1a1a2e;
+    --bg-tertiary: #16213e;
+    --bg-chat: #212121;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --text-muted: #8e8ea0;
+    --accent: #10a37f;
+    --accent-hover: #0d8f6f;
+    --border: #2d2d2d;
+    --border-light: #404040;
+    --error: #ff6b6b;
+    --warning: #ffd93d;
+    --success: #6bcf7f;
 }
 
 /* Анимации загрузки */

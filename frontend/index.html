@@ -14,22 +14,23 @@
         }
 
         :root {
-            --bg-primary: #0f0f23;
-            --bg-secondary: #1a1a2e;
-            --bg-tertiary: #16213e;
-            --bg-chat: #212121;
-            --text-primary: #ffffff;
-            --text-secondary: #b3b3b3;
-            --text-muted: #8e8ea0;
-            --accent: #10a37f;
-            --accent-hover: #0d8f6f;
-            --border: #2d2d2d;
-            --border-light: #404040;
-            --error: #ff6b6b;
-            --warning: #ffd93d;
-            --success: #6bcf7f;
+            /* Светлая тема с графитовыми акцентами */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --bg-chat: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #495057;
+            --text-muted: #6c757d;
+            --accent: #34495e;
+            --accent-hover: #2c3e50;
+            --border: #dee2e6;
+            --border-light: #e9ecef;
+            --error: #dc3545;
+            --warning: #ffc107;
+            --success: #28a745;
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
             --radius: 8px;
             --radius-lg: 12px;
             --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -192,6 +193,28 @@
             animation: pulse 2s infinite;
         }
 
+        .theme-toggle-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .theme-toggle-btn:hover {
+            background: var(--bg-tertiary);
+            transform: scale(1.1);
+            box-shadow: var(--shadow);
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -217,12 +240,17 @@
         }
 
         .chat-messages::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
+            background: transparent;
         }
 
         .chat-messages::-webkit-scrollbar-thumb {
             background: var(--border-light);
             border-radius: 3px;
+            border: 2px solid var(--bg-primary);
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
         }
 
         .message {
@@ -669,9 +697,14 @@
                     </svg>
                 </div>
 
-                <div class="status-indicator">
-                    <div class="status-dot"></div>
-                    <span id="statusText">Система готова</span>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button class="theme-toggle-btn" onclick="toggleTheme()" title="Переключить тему">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <div class="status-indicator">
+                        <div class="status-dot"></div>
+                        <span id="statusText">Система готова</span>
+                    </div>
                 </div>
             </div>
 
@@ -736,10 +769,15 @@
         let currentModel = 'llama3';
         let isLoading = false;
         let chatHistory = [];
+        let currentTheme = 'light';
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 GPTInfernse загружен');
+            
+            // Load saved theme first
+            loadSavedTheme();
+            
             checkSystemHealth();
             loadAvailableModels();
             
@@ -775,8 +813,29 @@
         async function loadAvailableModels() {
             try {
                 console.log('🤖 Загрузка доступных моделей...');
+                
+                // Сначала проверяем API
+                const healthResponse = await fetch('/api/health/detailed');
+                if (!healthResponse.ok) {
+                    throw new Error('API недоступен');
+                }
+                
+                const healthData = await healthResponse.json();
+                console.log('🔍 Состояние системы:', healthData);
+                
+                // Проверяем Ollama
+                if (healthData.components?.ollama?.status !== 'healthy') {
+                    throw new Error('Ollama недоступен. Проверьте, что Ollama запущен на порту 11434.');
+                }
+                
+                // Загружаем модели
                 const response = await fetch('/api/models/');
+                if (!response.ok) {
+                    throw new Error(`Ошибка загрузки моделей: ${response.status}`);
+                }
+                
                 const data = await response.json();
+                console.log('📋 Ответ API моделей:', data);
                 
                 if (data.models && data.models.length > 0) {
                     console.log('✅ Найдено моделей:', data.models.length);
@@ -785,14 +844,27 @@
                         const modelName = data.models[0].name.split(':')[0];
                         currentModel = modelName;
                         document.getElementById('currentModel').textContent = getModelDisplayName(modelName);
+                        updateStatus(`Готов (${data.models.length} моделей)`, 'success');
                     }
                 } else {
-                    console.warn('⚠️ Модели не найдены');
-                    showError('Модели не найдены. Убедитесь, что Ollama запущен и модели установлены.');
+                    console.warn('⚠️ Модели не найдены в ответе API');
+                    updateStatus('Модели не найдены', 'warning');
+                    showError('Модели не найдены. Установите модели командой: docker exec ollama ollama pull llama3');
                 }
             } catch (error) {
                 console.error('❌ Ошибка загрузки моделей:', error);
-                showError('Не удается загрузить список моделей.');
+                updateStatus('Ошибка загрузки моделей', 'error');
+                
+                let errorMessage = 'Не удается загрузить модели. ';
+                if (error.message.includes('Ollama недоступен')) {
+                    errorMessage += 'Запустите Ollama: docker run -d -p 11434:11434 ollama/ollama';
+                } else if (error.message.includes('API недоступен')) {
+                    errorMessage += 'Запустите API сервер: ./start_with_frontend.sh';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                showError(errorMessage);
             }
         }
 
@@ -902,17 +974,38 @@
                 hideTypingIndicator();
                 
                 let errorMessage = 'Произошла ошибка при обработке запроса.';
+                let suggestion = '';
+                
                 if (error.message.includes('Model') && error.message.includes('not available')) {
-                    errorMessage = `Модель "${currentModel}" недоступна. Попробуйте другую модель.`;
-                } else if (error.message.includes('Failed to fetch')) {
-                    errorMessage = 'Нет связи с сервером. Проверьте подключение.';
+                    errorMessage = `Модель "${currentModel}" недоступна.`;
+                    suggestion = 'Установите модель: docker exec ollama ollama pull ' + currentModel;
+                } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMessage = 'Нет связи с сервером.';
+                    suggestion = 'Проверьте, что API запущен: ./start_with_frontend.sh';
                 } else if (error.message.includes('HTTP 400')) {
-                    errorMessage = 'Некорректный запрос. Проверьте настройки модели.';
+                    errorMessage = 'Некорректный запрос к модели.';
+                    suggestion = 'Попробуйте переформулировать вопрос или выберите другую модель.';
                 } else if (error.message.includes('HTTP 500')) {
-                    errorMessage = 'Внутренняя ошибка сервера. Попробуйте позже.';
+                    errorMessage = 'Внутренняя ошибка сервера.';
+                    suggestion = 'Перезапустите систему: ./start_with_frontend.sh restart';
+                } else if (error.message.includes('HTTP 503')) {
+                    errorMessage = 'Сервис временно недоступен.';
+                    suggestion = 'Ollama может быть перегружен, попробуйте через несколько секунд.';
                 }
                 
-                addMessage(`❌ ${errorMessage}`, 'error');
+                const fullMessage = suggestion ? 
+                    `${errorMessage}\n\n💡 Решение: ${suggestion}` : 
+                    errorMessage;
+                
+                addMessage(`❌ ${fullMessage}`, 'error');
+                updateStatus('Ошибка отправки', 'error');
+                
+                // Автоматически попробовать переподключиться через 5 секунд
+                setTimeout(() => {
+                    checkSystemHealth();
+                    loadAvailableModels();
+                }, 5000);
+                
             } finally {
                 setLoading(false);
             }
@@ -1068,6 +1161,34 @@
         function toggleModelSelector() {
             // TODO: Implement model selector dropdown
             console.log('🔄 Переключение модели (в разработке)');
+        }
+
+        // Theme toggle function
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            
+            const themeIcon = document.getElementById('themeIcon');
+            themeIcon.textContent = currentTheme === 'light' ? '🌙' : '☀️';
+            
+            // Save theme preference
+            localStorage.setItem('gptinfernse_theme', currentTheme);
+            
+            console.log(`🎨 Переключено на ${currentTheme === 'light' ? 'светлую' : 'темную'} тему`);
+        }
+
+        // Load saved theme
+        function loadSavedTheme() {
+            const savedTheme = localStorage.getItem('gptinfernse_theme');
+            if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+                currentTheme = savedTheme;
+                document.documentElement.setAttribute('data-theme', currentTheme);
+                
+                const themeIcon = document.getElementById('themeIcon');
+                if (themeIcon) {
+                    themeIcon.textContent = currentTheme === 'light' ? '🌙' : '☀️';
+                }
+            }
         }
 
         // Mobile sidebar toggle
