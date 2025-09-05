@@ -1,19 +1,31 @@
 """Ollama-related data models."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ModelInfo(BaseModel):
     """Ollama model information."""
     
     name: str = Field(..., description="Model name")
-    size: str = Field(..., description="Model size")
+    size: Union[str, int] = Field(..., description="Model size")
     digest: str = Field(..., description="Model digest/hash")
     modified_at: datetime = Field(..., description="Last modification time")
     details: Optional[Dict[str, Any]] = Field(default=None, description="Additional model details")
+    
+    @validator('size', pre=True)
+    def convert_size(cls, v):
+        """Convert size to human readable format."""
+        if isinstance(v, int):
+            # Convert bytes to human readable format
+            for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+                if v < 1024.0:
+                    return f"{v:.1f}{unit}"
+                v /= 1024.0
+            return f"{v:.1f}PB"
+        return str(v)
     
     class Config:
         json_schema_extra = {
