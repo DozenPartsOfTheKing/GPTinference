@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPTInfernse - AI Assistant</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>GPTInfernse - Твой личный ChatGPT</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <link rel="stylesheet" href="styles.css">
     <style>
         * {
             margin: 0;
@@ -13,257 +13,312 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
+        :root {
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #16213e;
+            --bg-chat: #212121;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --text-muted: #8e8ea0;
+            --accent: #10a37f;
+            --accent-hover: #0d8f6f;
+            --border: #2d2d2d;
+            --border-light: #404040;
+            --error: #ff6b6b;
+            --warning: #ffd93d;
+            --success: #6bcf7f;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+            --radius-lg: 12px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
+            transition: var(--transition);
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .new-chat-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 8px 16px;
+            margin: 2px 8px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
             color: white;
         }
 
-        .header h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border);
         }
 
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            font-weight: 300;
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
         }
 
+        .user-info:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Main Content */
         .main-content {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 30px;
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
         }
 
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .model-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .model-selector:hover {
+            border-color: var(--accent);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Chat Area */
         .chat-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        .chat-header {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            color: white;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .chat-header h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .model-selector {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-        }
-
         .chat-messages {
             flex: 1;
-            padding: 20px;
             overflow-y: auto;
-            max-height: 500px;
-            min-height: 400px;
+            padding: 24px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 3px;
         }
 
         .message {
-            margin-bottom: 20px;
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
+            margin-bottom: 24px;
+            animation: slideIn 0.3s ease-out;
         }
 
-        .message.user {
-            flex-direction: row-reverse;
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
         }
 
         .message-avatar {
-            width: 40px;
-            height: 40px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .user-message .message-avatar {
+            background: var(--accent);
             color: white;
-            flex-shrink: 0;
         }
 
-        .message.user .message-avatar {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+        .ai-message .message-avatar {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
         }
 
-        .message.assistant .message-avatar {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        .message-author {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
         .message-content {
-            background: #f8fafc;
-            padding: 15px 20px;
-            border-radius: 18px;
-            max-width: 70%;
+            margin-left: 44px;
             line-height: 1.6;
-            font-size: 0.95rem;
+            font-size: 15px;
         }
 
-        .message.user .message-content {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+        .user-message .message-content {
+            color: var(--text-primary);
         }
 
-        .message.assistant .message-content {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
+        .ai-message .message-content {
+            color: var(--text-secondary);
         }
 
-        .chat-input-container {
-            padding: 20px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
+        .message-content pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin: 12px 0;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
         }
 
-        .chat-input-wrapper {
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-        }
-
-        .chat-input {
-            flex: 1;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px 16px;
-            font-size: 1rem;
-            resize: none;
-            min-height: 50px;
-            max-height: 120px;
-            font-family: inherit;
-            transition: border-color 0.2s;
-        }
-
-        .chat-input:focus {
-            outline: none;
-            border-color: #4f46e5;
-        }
-
-        .send-button {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            font-weight: 600;
-        }
-
-        .send-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
-        }
-
-        .send-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .sidebar-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        .sidebar-card h3 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #1e293b;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .status-item:last-child {
-            border-bottom: none;
-        }
-
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-left: 8px;
-        }
-
-        .status-indicator.online {
-            background: #10b981;
-        }
-
-        .status-indicator.offline {
-            background: #ef4444;
-        }
-
-        .model-item {
-            padding: 10px;
-            background: #f8fafc;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        .model-item:last-child {
-            margin-bottom: 0;
+        .message-content code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
         }
 
         .typing-indicator {
-            display: none;
+            display: flex;
             align-items: center;
             gap: 8px;
-            color: #64748b;
+            margin-left: 44px;
+            color: var(--text-muted);
             font-style: italic;
-            margin-bottom: 15px;
         }
 
         .typing-dots {
@@ -274,189 +329,402 @@
         .typing-dot {
             width: 6px;
             height: 6px;
-            background: #64748b;
             border-radius: 50%;
-            animation: typing 1.4s infinite;
+            background: var(--accent);
+            animation: typing 1.4s infinite ease-in-out;
         }
 
-        .typing-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
         @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
             }
-            30% {
-                transform: translateY(-10px);
+            40% {
+                transform: scale(1);
+                opacity: 1;
             }
         }
 
-        .error-message {
-            background: #fef2f2;
-            color: #dc2626;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border-left: 4px solid #dc2626;
+        /* Welcome Screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 48px;
         }
 
+        .welcome-title {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 600px;
+        }
+
+        .example-prompts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            max-width: 800px;
+            margin-bottom: 32px;
+        }
+
+        .example-prompt {
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: left;
+        }
+
+        .example-prompt:hover {
+            border-color: var(--accent);
+            background: var(--bg-tertiary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .example-prompt-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .example-prompt-text {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Input Area */
+        .input-container {
+            padding: 24px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-primary);
+        }
+
+        .input-wrapper {
+            max-width: 768px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .input-box {
+            width: 100%;
+            min-height: 52px;
+            max-height: 200px;
+            padding: 14px 60px 14px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-size: 15px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .input-box:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        .input-box::placeholder {
+            color: var(--text-muted);
+        }
+
+        .send-button {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: var(--border-light);
+            cursor: not-allowed;
+            transform: translateY(-50%);
+        }
+
+        .input-footer {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
             .main-content {
+                width: 100%;
+            }
+
+            .chat-header {
+                padding: 12px 16px;
+            }
+
+            .chat-messages {
+                padding: 16px;
+            }
+
+            .input-container {
+                padding: 16px;
+            }
+
+            .welcome-screen {
+                padding: 24px 16px;
+            }
+
+            .welcome-title {
+                font-size: 24px;
+            }
+
+            .example-prompts {
                 grid-template-columns: 1fr;
             }
-            
-            .header h1 {
-                font-size: 2rem;
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error States */
+        .error-message {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid var(--error);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            margin: 16px 0;
+            color: var(--error);
+            font-size: 14px;
+        }
+
+        /* Success States */
+        .success-message {
+            background: rgba(107, 207, 127, 0.1);
+            border: 1px solid var(--success);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            margin: 16px 0;
+            color: var(--success);
+            font-size: 14px;
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
-            
-            .message-content {
-                max-width: 85%;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
-        }
-
-        .welcome-message {
-            text-align: center;
-            padding: 40px 20px;
-            color: #64748b;
-        }
-
-        .welcome-message i {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: #4f46e5;
-        }
-
-        .quick-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-
-        .quick-action {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quick-action:hover {
-            background: #4f46e5;
-            color: white;
-            border-color: #4f46e5;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1><i class="fas fa-brain"></i> GPTInfernse</h1>
-            <p>Ваш персональный AI-ассистент корпоративного уровня</p>
-        </header>
+    <div class="app">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="startNewChat()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Новый чат
+                </button>
+            </div>
 
+            <div class="sidebar-nav">
+                <div class="nav-item active" onclick="setActiveNav(this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Общий чат
+                </div>
+                <div class="nav-item" onclick="setActiveNav(this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                    </svg>
+                    Помощь с кодом
+                </div>
+                <div class="nav-item" onclick="setActiveNav(this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    Творческие задачи
+                </div>
+                <div class="nav-item" onclick="setActiveNav(this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4m6-6h4a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-4m-6 0a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-4z"/>
+                    </svg>
+                    Анализ данных
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">П</div>
+                    <div>
+                        <div style="font-size: 14px; font-weight: 500;">Пользователь</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">GPTInfernse v1.0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
         <div class="main-content">
-            <div class="chat-container">
-                <div class="chat-header">
-                    <h2><i class="fas fa-comments"></i> Чат с AI</h2>
-                    <select class="model-selector" id="modelSelector">
-                        <option value="llama3">LLaMA 3</option>
-                        <option value="mistral">Mistral</option>
-                        <option value="codellama">CodeLLaMA</option>
-                    </select>
+            <div class="chat-header">
+                <div class="model-selector" onclick="toggleModelSelector()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+                    </svg>
+                    <span id="currentModel">LLaMA 3</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6,9 12,15 18,9"/>
+                    </svg>
                 </div>
 
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="statusText">Система готова</span>
+                </div>
+            </div>
+
+            <div class="chat-container">
                 <div class="chat-messages" id="chatMessages">
-                    <div class="welcome-message">
-                        <i class="fas fa-robot"></i>
-                        <h3>Добро пожаловать в GPTInfernse!</h3>
-                        <p>Задайте любой вопрос или выберите один из примеров ниже:</p>
-                        <div class="quick-actions">
-                            <div class="quick-action" onclick="sendQuickMessage('Объясни квантовые вычисления простыми словами')">
-                                Квантовые вычисления
+                    <!-- Welcome Screen -->
+                    <div class="welcome-screen" id="welcomeScreen">
+                        <h1 class="welcome-title">Добро пожаловать в GPTInfernse</h1>
+                        <p class="welcome-subtitle">
+                            Ваш личный AI-ассистент готов помочь с любыми задачами. 
+                            Задавайте вопросы, просите написать код, создать тексты или просто поболтать.
+                        </p>
+
+                        <div class="example-prompts">
+                            <div class="example-prompt" onclick="useExamplePrompt('Объясни принципы работы нейронных сетей простыми словами')">
+                                <div class="example-prompt-title">🧠 Обучение</div>
+                                <div class="example-prompt-text">Объясни принципы работы нейронных сетей простыми словами</div>
                             </div>
-                            <div class="quick-action" onclick="sendQuickMessage('Напиши план проекта на Python')">
-                                План проекта
+                            <div class="example-prompt" onclick="useExamplePrompt('Напиши функцию на Python для сортировки списка')">
+                                <div class="example-prompt-title">💻 Программирование</div>
+                                <div class="example-prompt-text">Напиши функцию на Python для сортировки списка</div>
                             </div>
-                            <div class="quick-action" onclick="sendQuickMessage('Как работает машинное обучение?')">
-                                Машинное обучение
+                            <div class="example-prompt" onclick="useExamplePrompt('Помоги составить план изучения JavaScript')">
+                                <div class="example-prompt-title">📚 Планирование</div>
+                                <div class="example-prompt-text">Помоги составить план изучения JavaScript</div>
                             </div>
-                            <div class="quick-action" onclick="sendQuickMessage('Создай REST API на FastAPI')">
-                                FastAPI код
+                            <div class="example-prompt" onclick="useExamplePrompt('Придумай креативную идею для стартапа')">
+                                <div class="example-prompt-title">💡 Творчество</div>
+                                <div class="example-prompt-text">Придумай креативную идею для стартапа</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="typing-indicator" id="typingIndicator">
-                    <i class="fas fa-robot"></i>
-                    <span>AI печатает</span>
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-
-                <div class="chat-input-container">
-                    <div class="chat-input-wrapper">
+                <div class="input-container">
+                    <div class="input-wrapper">
                         <textarea 
-                            class="chat-input" 
-                            id="chatInput" 
-                            placeholder="Введите ваш вопрос..."
+                            class="input-box" 
+                            id="messageInput" 
+                            placeholder="Напишите сообщение..."
                             rows="1"
+                            onkeydown="handleKeyDown(event)"
+                            oninput="adjustTextareaHeight(this)"
                         ></textarea>
                         <button class="send-button" id="sendButton" onclick="sendMessage()">
-                            <i class="fas fa-paper-plane"></i>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+                            </svg>
                         </button>
                     </div>
-                </div>
-            </div>
-
-            <div class="sidebar">
-                <div class="sidebar-card">
-                    <h3><i class="fas fa-heartbeat"></i> Статус системы</h3>
-                    <div class="status-item">
-                        <span>API Сервер</span>
-                        <div class="status-indicator online" id="apiStatus"></div>
-                    </div>
-                    <div class="status-item">
-                        <span>Ollama</span>
-                        <div class="status-indicator online" id="ollamaStatus"></div>
-                    </div>
-                    <div class="status-item">
-                        <span>Redis</span>
-                        <div class="status-indicator online" id="redisStatus"></div>
-                    </div>
-                    <div class="status-item">
-                        <span>Celery Worker</span>
-                        <div class="status-indicator online" id="workerStatus"></div>
-                    </div>
-                </div>
-
-                <div class="sidebar-card">
-                    <h3><i class="fas fa-brain"></i> Доступные модели</h3>
-                    <div id="modelsList">
-                        <div class="model-item">Загрузка...</div>
-                    </div>
-                </div>
-
-                <div class="sidebar-card">
-                    <h3><i class="fas fa-chart-line"></i> Статистика</h3>
-                    <div class="status-item">
-                        <span>Сообщений отправлено</span>
-                        <span id="messageCount">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span>Время ответа</span>
-                        <span id="responseTime">-</span>
+                    <div class="input-footer">
+                        GPTInfernse может делать ошибки. Проверяйте важную информацию.
                     </div>
                 </div>
             </div>
@@ -464,251 +732,355 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8000';
-        let messageCount = 0;
+        // Global variables
+        let currentModel = 'llama3';
+        let isLoading = false;
+        let chatHistory = [];
 
-        // Инициализация
+        // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 GPTInfernse загружен');
             checkSystemHealth();
-            loadModels();
+            loadAvailableModels();
             
-            // Автоматическое изменение размера textarea
-            const chatInput = document.getElementById('chatInput');
-            chatInput.addEventListener('input', function() {
-                this.style.height = 'auto';
-                this.style.height = this.scrollHeight + 'px';
+            // Auto-resize textarea
+            const textarea = document.getElementById('messageInput');
+            textarea.addEventListener('input', function() {
+                adjustTextareaHeight(this);
             });
-
-            // Отправка по Enter (Shift+Enter для новой строки)
-            chatInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-
-            // Периодическая проверка статуса
-            setInterval(checkSystemHealth, 30000);
         });
 
-        // Проверка здоровья системы
+        // System health check
         async function checkSystemHealth() {
             try {
-                const response = await fetch(`${API_BASE}/health/detailed`);
-                const health = await response.json();
-                
-                updateStatus('apiStatus', health.status === 'healthy');
-                
-                if (health.components) {
-                    updateStatus('ollamaStatus', health.components.ollama?.status === 'healthy');
-                    updateStatus('redisStatus', health.components.redis?.status === 'healthy');
-                    updateStatus('workerStatus', true); // Предполагаем что работает если API отвечает
-                }
-            } catch (error) {
-                console.error('Health check failed:', error);
-                updateStatus('apiStatus', false);
-                updateStatus('ollamaStatus', false);
-                updateStatus('redisStatus', false);
-                updateStatus('workerStatus', false);
-            }
-        }
-
-        // Обновление статуса индикатора
-        function updateStatus(elementId, isOnline) {
-            const element = document.getElementById(elementId);
-            element.className = `status-indicator ${isOnline ? 'online' : 'offline'}`;
-        }
-
-        // Загрузка списка моделей
-        async function loadModels() {
-            try {
-                const response = await fetch(`${API_BASE}/models/`);
+                console.log('🔍 Проверка состояния системы...');
+                const response = await fetch('/api/health/detailed');
                 const data = await response.json();
                 
-                const modelsList = document.getElementById('modelsList');
-                const modelSelector = document.getElementById('modelSelector');
-                
-                if (data.models && data.models.length > 0) {
-                    // Обновляем список в сайдбаре
-                    modelsList.innerHTML = data.models.map(model => 
-                        `<div class="model-item">
-                            <strong>${model.name}</strong><br>
-                            <small>${model.size}</small>
-                        </div>`
-                    ).join('');
-                    
-                    // Обновляем селектор
-                    modelSelector.innerHTML = data.models.map(model => 
-                        `<option value="${model.name}">${model.name}</option>`
-                    ).join('');
+                if (data.status === 'healthy') {
+                    updateStatus('Система готова', 'success');
+                    console.log('✅ Система здорова:', data);
                 } else {
-                    modelsList.innerHTML = '<div class="model-item">Модели не найдены</div>';
+                    updateStatus('Проблемы с системой', 'warning');
+                    console.warn('⚠️ Проблемы с системой:', data);
                 }
             } catch (error) {
-                console.error('Failed to load models:', error);
-                document.getElementById('modelsList').innerHTML = 
-                    '<div class="model-item">Ошибка загрузки</div>';
+                updateStatus('Нет связи с сервером', 'error');
+                console.error('❌ Ошибка проверки здоровья:', error);
+                showError('Не удается подключиться к серверу. Проверьте, что API запущен на порту 8000.');
             }
         }
 
-        // Отправка сообщения
+        // Load available models
+        async function loadAvailableModels() {
+            try {
+                console.log('🤖 Загрузка доступных моделей...');
+                const response = await fetch('/api/models/');
+                const data = await response.json();
+                
+                if (data.models && data.models.length > 0) {
+                    console.log('✅ Найдено моделей:', data.models.length);
+                    // Update model selector with first available model
+                    if (data.models[0]) {
+                        const modelName = data.models[0].name.split(':')[0];
+                        currentModel = modelName;
+                        document.getElementById('currentModel').textContent = getModelDisplayName(modelName);
+                    }
+                } else {
+                    console.warn('⚠️ Модели не найдены');
+                    showError('Модели не найдены. Убедитесь, что Ollama запущен и модели установлены.');
+                }
+            } catch (error) {
+                console.error('❌ Ошибка загрузки моделей:', error);
+                showError('Не удается загрузить список моделей.');
+            }
+        }
+
+        // Get display name for model
+        function getModelDisplayName(modelName) {
+            const modelNames = {
+                'llama3': 'LLaMA 3',
+                'mistral': 'Mistral',
+                'codellama': 'CodeLLaMA',
+                'phi3': 'Phi-3',
+                'gemma': 'Gemma'
+            };
+            return modelNames[modelName] || modelName.toUpperCase();
+        }
+
+        // Update status indicator
+        function updateStatus(text, type = 'success') {
+            const statusText = document.getElementById('statusText');
+            const statusDot = document.querySelector('.status-dot');
+            
+            statusText.textContent = text;
+            
+            statusDot.className = 'status-dot';
+            if (type === 'error') {
+                statusDot.style.background = 'var(--error)';
+            } else if (type === 'warning') {
+                statusDot.style.background = 'var(--warning)';
+            } else {
+                statusDot.style.background = 'var(--success)';
+            }
+        }
+
+        // Handle keyboard shortcuts
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Auto-resize textarea
+        function adjustTextareaHeight(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        }
+
+        // Use example prompt
+        function useExamplePrompt(prompt) {
+            document.getElementById('messageInput').value = prompt;
+            adjustTextareaHeight(document.getElementById('messageInput'));
+            sendMessage();
+        }
+
+        // Send message
         async function sendMessage() {
-            const input = document.getElementById('chatInput');
+            const input = document.getElementById('messageInput');
             const message = input.value.trim();
             
-            if (!message) return;
+            if (!message || isLoading) return;
             
-            const model = document.getElementById('modelSelector').value;
-            
-            // Добавляем сообщение пользователя
-            addMessage(message, 'user');
+            // Clear input and hide welcome screen
             input.value = '';
-            input.style.height = 'auto';
+            adjustTextareaHeight(input);
+            hideWelcomeScreen();
             
-            // Показываем индикатор печатания
-            showTyping(true);
+            // Add user message
+            addMessage(message, 'user');
             
-            // Отключаем кнопку отправки
-            const sendButton = document.getElementById('sendButton');
-            sendButton.disabled = true;
-            
-            const startTime = Date.now();
-            
-            // Подготавливаем payload
-            const payload = {
-                prompt: message,
-                model: model,
-                max_tokens: 1000,
-                temperature: 0.7
-            };
-            
-            console.log('🚀 Отправка запроса:', payload);
+            // Show loading state
+            setLoading(true);
+            showTypingIndicator();
             
             try {
-                const response = await fetch(`${API_BASE}/chat/sync`, {
+                console.log('📤 Отправка сообщения:', { prompt: message, model: currentModel });
+                
+                const response = await fetch('/api/chat/sync', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        prompt: message,
+                        model: currentModel,
+                        max_tokens: 2000
+                    })
                 });
-                
-                console.log('📡 Ответ сервера:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: Object.fromEntries(response.headers.entries())
-                });
-                
-                const responseText = await response.text();
-                console.log('📄 Тело ответа:', responseText);
+
+                console.log('📥 Статус ответа:', response.status);
                 
                 if (!response.ok) {
-                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                    
-                    try {
-                        const errorData = JSON.parse(responseText);
-                        if (errorData.detail) {
-                            errorMessage += `\nДетали: ${JSON.stringify(errorData.detail, null, 2)}`;
-                        }
-                    } catch (e) {
-                        errorMessage += `\nОтвет сервера: ${responseText}`;
-                    }
-                    
-                    throw new Error(errorMessage);
+                    const errorData = await response.json();
+                    console.error('❌ Ошибка API:', errorData);
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
                 }
+
+                const data = await response.json();
+                console.log('✅ Получен ответ:', data);
                 
-                const data = JSON.parse(responseText);
-                const responseTime = Date.now() - startTime;
+                hideTypingIndicator();
+                addMessage(data.response, 'ai');
                 
-                console.log('✅ Успешный ответ:', data);
-                
-                // Добавляем ответ AI
-                addMessage(data.response, 'assistant');
-                
-                // Обновляем статистику
-                messageCount++;
-                document.getElementById('messageCount').textContent = messageCount;
-                document.getElementById('responseTime').textContent = `${(responseTime / 1000).toFixed(1)}s`;
+                // Add to chat history
+                chatHistory.push({ user: message, ai: data.response });
                 
             } catch (error) {
-                console.error('❌ Ошибка чата:', error);
+                console.error('❌ Ошибка отправки сообщения:', error);
+                hideTypingIndicator();
                 
-                // Показываем детальную ошибку
-                let errorDisplay = error.message;
-                if (error.message.includes('Failed to fetch')) {
-                    errorDisplay = 'Не удалось подключиться к серверу. Проверьте что API запущен на http://localhost:8000';
-                } else if (error.message.includes('400')) {
-                    errorDisplay = 'Ошибка запроса (400). Проверьте параметры запроса и доступность модели.';
-                } else if (error.message.includes('500')) {
-                    errorDisplay = 'Внутренняя ошибка сервера (500). Проверьте логи API сервера.';
+                let errorMessage = 'Произошла ошибка при обработке запроса.';
+                if (error.message.includes('Model') && error.message.includes('not available')) {
+                    errorMessage = `Модель "${currentModel}" недоступна. Попробуйте другую модель.`;
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Нет связи с сервером. Проверьте подключение.';
+                } else if (error.message.includes('HTTP 400')) {
+                    errorMessage = 'Некорректный запрос. Проверьте настройки модели.';
+                } else if (error.message.includes('HTTP 500')) {
+                    errorMessage = 'Внутренняя ошибка сервера. Попробуйте позже.';
                 }
                 
-                addMessage(`❌ ${errorDisplay}`, 'assistant', true);
-                
-                // Логируем в консоль для отладки
-                console.group('🔍 Детали ошибки');
-                console.log('Сообщение:', message);
-                console.log('Модель:', model);
-                console.log('API URL:', `${API_BASE}/chat/sync`);
-                console.log('Payload:', payload);
-                console.log('Ошибка:', error);
-                console.groupEnd();
-                
+                addMessage(`❌ ${errorMessage}`, 'error');
             } finally {
-                showTyping(false);
-                sendButton.disabled = false;
+                setLoading(false);
             }
         }
 
-        // Быстрые сообщения
-        function sendQuickMessage(message) {
-            document.getElementById('chatInput').value = message;
-            sendMessage();
-        }
-
-        // Добавление сообщения в чат
-        function addMessage(content, sender, isError = false) {
+        // Add message to chat
+        function addMessage(content, type) {
             const messagesContainer = document.getElementById('chatMessages');
-            
-            // Удаляем welcome message при первом сообщении
-            const welcomeMessage = messagesContainer.querySelector('.welcome-message');
-            if (welcomeMessage) {
-                welcomeMessage.remove();
-            }
-            
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
+            messageDiv.className = `message ${type}-message`;
             
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.innerHTML = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
             
-            const messageContent = document.createElement('div');
-            messageContent.className = 'message-content';
-            if (isError) {
-                messageContent.style.background = '#fef2f2';
-                messageContent.style.color = '#dc2626';
-                messageContent.style.borderColor = '#fecaca';
+            let avatar, author;
+            if (type === 'user') {
+                avatar = 'П';
+                author = 'Вы';
+            } else if (type === 'ai') {
+                avatar = '🤖';
+                author = getModelDisplayName(currentModel);
+            } else {
+                avatar = '⚠️';
+                author = 'Система';
             }
-            messageContent.textContent = content;
             
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(messageContent);
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">${avatar}</div>
+                    <div class="message-author">${author}</div>
+                    <div class="message-time">${timeString}</div>
+                </div>
+                <div class="message-content">${formatMessageContent(content)}</div>
+            `;
             
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Показать/скрыть индикатор печатания
-        function showTyping(show) {
-            const typingIndicator = document.getElementById('typingIndicator');
-            typingIndicator.style.display = show ? 'flex' : 'none';
+        // Format message content
+        function formatMessageContent(content) {
+            // Convert markdown-like formatting
+            content = content
+                .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
             
-            if (show) {
-                const messagesContainer = document.getElementById('chatMessages');
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return content;
+        }
+
+        // Show/hide typing indicator
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message ai-message';
+            typingDiv.id = 'typingIndicator';
+            
+            typingDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-author">${getModelDisplayName(currentModel)}</div>
+                </div>
+                <div class="typing-indicator">
+                    <span>Печатает</span>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
             }
         }
+
+        // Show/hide welcome screen
+        function hideWelcomeScreen() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.style.display = 'none';
+            }
+        }
+
+        function showWelcomeScreen() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.style.display = 'flex';
+            }
+        }
+
+        // Loading state management
+        function setLoading(loading) {
+            isLoading = loading;
+            const sendButton = document.getElementById('sendButton');
+            const input = document.getElementById('messageInput');
+            
+            if (loading) {
+                sendButton.disabled = true;
+                sendButton.innerHTML = '<div class="spinner"></div>';
+                input.disabled = true;
+                updateStatus('Обработка запроса...', 'warning');
+            } else {
+                sendButton.disabled = false;
+                sendButton.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+                    </svg>
+                `;
+                input.disabled = false;
+                updateStatus('Система готова', 'success');
+            }
+        }
+
+        // Error handling
+        function showError(message) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            messagesContainer.appendChild(errorDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Navigation functions
+        function setActiveNav(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        function startNewChat() {
+            chatHistory = [];
+            document.getElementById('chatMessages').innerHTML = '';
+            showWelcomeScreen();
+            console.log('🆕 Новый чат начат');
+        }
+
+        function toggleModelSelector() {
+            // TODO: Implement model selector dropdown
+            console.log('🔄 Переключение модели (в разработке)');
+        }
+
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Auto-check system health every 30 seconds
+        setInterval(checkSystemHealth, 30000);
+
+        console.log('✅ GPTInfernse UI инициализирован');
     </script>
+    <script src="app.js"></script>
 </body>
 </html>

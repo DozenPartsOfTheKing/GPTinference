@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPTInfernse - Демо интерфейса</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .demo-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .demo-title {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #00d4aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+
+        .demo-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .demo-nav {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .demo-nav-btn {
+            padding: 12px 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .demo-nav-btn:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .demo-section {
+            margin-bottom: 80px;
+            padding: 40px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+
+        .demo-section h2 {
+            font-size: 32px;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+        }
+
+        .demo-section p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .demo-item {
+            padding: 24px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .demo-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .demo-item h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .demo-item p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .demo-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e55555;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #5bb36b;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .color-item {
+            text-align: center;
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .color-swatch {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 12px;
+            border: 2px solid var(--border);
+        }
+
+        .color-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .color-value {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .typography-demo h1, .typography-demo h2, .typography-demo h3 {
+            margin-bottom: 16px;
+        }
+
+        .typography-demo p {
+            margin-bottom: 16px;
+        }
+
+        .component-showcase {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .chat-preview {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .preview-message {
+            margin-bottom: 24px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .preview-message-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .preview-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .preview-user .preview-avatar {
+            background: var(--accent);
+            color: white;
+        }
+
+        .preview-ai .preview-avatar {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .preview-content {
+            margin-left: 44px;
+            line-height: 1.6;
+        }
+
+        .form-demo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+
+        .back-to-app {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .demo-title {
+                font-size: 32px;
+            }
+            
+            .demo-section {
+                padding: 24px 20px;
+            }
+            
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="btn btn-primary back-to-app">
+        ← Вернуться к приложению
+    </a>
+
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1 class="demo-title">GPTInfernse UI Demo</h1>
+            <p class="demo-subtitle">
+                Демонстрация всех компонентов и возможностей интерфейса
+            </p>
+            <div class="demo-nav">
+                <a href="#colors" class="demo-nav-btn">Цвета</a>
+                <a href="#typography" class="demo-nav-btn">Типографика</a>
+                <a href="#components" class="demo-nav-btn">Компоненты</a>
+                <a href="#forms" class="demo-nav-btn">Формы</a>
+                <a href="#chat" class="demo-nav-btn">Чат</a>
+                <a href="#animations" class="demo-nav-btn">Анимации</a>
+            </div>
+        </div>
+
+        <!-- Цветовая палитра -->
+        <div id="colors" class="demo-section">
+            <h2>🎨 Цветовая палитра</h2>
+            <p>Современная темная цветовая схема, вдохновленная ChatGPT</p>
+            
+            <div class="color-palette">
+                <div class="color-item">
+                    <div class="color-swatch" style="background: var(--accent);"></div>
+                    <div class="color-name">Accent</div>
+                    <div class="color-value">#10a37f</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-swatch" style="background: var(--bg-primary);"></div>
+                    <div class="color-name">Primary BG</div>
+                    <div class="color-value">#0f0f23</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-swatch" style="background: var(--bg-secondary);"></div>
+                    <div class="color-name">Secondary BG</div>
+                    <div class="color-value">#1a1a2e</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-swatch" style="background: var(--text-primary);"></div>
+                    <div class="color-name">Primary Text</div>
+                    <div class="color-value">#ffffff</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-swatch" style="background: var(--success);"></div>
+                    <div class="color-name">Success</div>
+                    <div class="color-value">#6bcf7f</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-swatch" style="background: var(--error);"></div>
+                    <div class="color-name">Error</div>
+                    <div class="color-value">#ff6b6b</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Типографика -->
+        <div id="typography" class="demo-section">
+            <h2>📝 Типографика</h2>
+            <p>Читаемые шрифты и правильная иерархия текста</p>
+            
+            <div class="typography-demo">
+                <h1>Заголовок H1 - Основной заголовок</h1>
+                <h2>Заголовок H2 - Вторичный заголовок</h2>
+                <h3>Заголовок H3 - Подзаголовок</h3>
+                <p><strong>Жирный текст</strong> для выделения важной информации</p>
+                <p><em>Курсивный текст</em> для акцентов и цитат</p>
+                <p>Обычный текст с хорошей читаемостью и правильным межстрочным интервалом. Этот абзац демонстрирует, как выглядит длинный текст в интерфейсе.</p>
+                <p><code>Моноширинный код</code> для технических терминов</p>
+                <pre><code>function example() {
+    console.log("Блок кода");
+    return true;
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- Компоненты -->
+        <div id="components" class="demo-section">
+            <h2>🧩 Компоненты</h2>
+            <p>Переиспользуемые UI элементы с современным дизайном</p>
+            
+            <div class="component-showcase">
+                <!-- Кнопки -->
+                <div class="demo-item">
+                    <h3>Кнопки</h3>
+                    <p>Различные стили кнопок для разных действий</p>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary">Основная</button>
+                        <button class="btn btn-secondary">Вторичная</button>
+                        <button class="btn btn-success">Успех</button>
+                        <button class="btn btn-danger">Опасность</button>
+                        <button class="btn btn-primary" disabled>Отключена</button>
+                    </div>
+                </div>
+
+                <!-- Бейджи -->
+                <div class="demo-item">
+                    <h3>Бейджи и статусы</h3>
+                    <p>Индикаторы состояния и категории</p>
+                    <div class="demo-buttons">
+                        <span class="badge success">Успешно</span>
+                        <span class="badge error">Ошибка</span>
+                        <span class="badge warning">Внимание</span>
+                        <span class="badge info">Информация</span>
+                    </div>
+                </div>
+
+                <!-- Карточки -->
+                <div class="demo-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Карточка с заголовком</div>
+                            <div class="card-subtitle">Подзаголовок</div>
+                        </div>
+                        <div class="card-content">
+                            Содержимое карточки с полезной информацией и красивым оформлением.
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Интерактивная карточка</div>
+                        </div>
+                        <div class="card-content">
+                            Эта карточка реагирует на наведение мыши с плавными анимациями.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Уведомления -->
+                <div class="demo-item">
+                    <h3>Уведомления</h3>
+                    <p>Системные сообщения для пользователя</p>
+                    <div class="demo-buttons">
+                        <button class="btn btn-success" onclick="app?.showNotification('Операция выполнена успешно!', 'success')">
+                            Успех
+                        </button>
+                        <button class="btn btn-danger" onclick="app?.showNotification('Произошла ошибка при выполнении', 'error')">
+                            Ошибка
+                        </button>
+                        <button class="btn btn-secondary" onclick="app?.showNotification('Важная информация для пользователя', 'info')">
+                            Инфо
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Формы -->
+        <div id="forms" class="demo-section">
+            <h2>📋 Формы и элементы ввода</h2>
+            <p>Стильные и удобные элементы для ввода данных</p>
+            
+            <div class="form-demo">
+                <div class="demo-item">
+                    <h3>Текстовые поля</h3>
+                    <div class="form-group">
+                        <label class="form-label">Обычное поле</label>
+                        <input type="text" class="form-input" placeholder="Введите текст...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Поле с фокусом</label>
+                        <input type="text" class="form-input" value="Сфокусированное поле" style="border-color: var(--accent); box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);">
+                    </div>
+                </div>
+
+                <div class="demo-item">
+                    <h3>Выпадающие списки</h3>
+                    <div class="form-group">
+                        <label class="form-label">Выберите модель</label>
+                        <select class="form-select">
+                            <option>LLaMA 3</option>
+                            <option>Mistral</option>
+                            <option>CodeLLaMA</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="demo-item">
+                    <h3>Переключатели</h3>
+                    <div class="form-group">
+                        <label class="form-label">Темная тема</label>
+                        <label class="toggle">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Уведомления</label>
+                        <label class="toggle">
+                            <input type="checkbox">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Чат -->
+        <div id="chat" class="demo-section">
+            <h2>💬 Интерфейс чата</h2>
+            <p>Современный дизайн сообщений в стиле ChatGPT</p>
+            
+            <div class="chat-preview">
+                <div class="preview-message preview-user">
+                    <div class="preview-message-header">
+                        <div class="preview-avatar">П</div>
+                        <div style="font-weight: 600; font-size: 14px;">Вы</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">14:30</div>
+                    </div>
+                    <div class="preview-content">
+                        Привет! Можешь объяснить, как работают нейронные сети?
+                    </div>
+                </div>
+
+                <div class="preview-message preview-ai">
+                    <div class="preview-message-header">
+                        <div class="preview-avatar">🤖</div>
+                        <div style="font-weight: 600; font-size: 14px;">GPTInfernse</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">14:30</div>
+                    </div>
+                    <div class="preview-content">
+                        Конечно! Нейронные сети - это математические модели, вдохновленные работой человеческого мозга. Они состоят из множества взаимосвязанных узлов (нейронов), которые обрабатывают информацию.
+                        
+                        <br><br><strong>Основные компоненты:</strong>
+                        <br>• <strong>Входной слой</strong> - получает данные
+                        <br>• <strong>Скрытые слои</strong> - обрабатывают информацию  
+                        <br>• <strong>Выходной слой</strong> - выдает результат
+                        
+                        <br><br>Вот простой пример кода:
+                        <pre><code>import numpy as np
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+# Простая нейронная сеть
+weights = np.random.random((3, 1))
+inputs = np.array([[1, 0, 1]])
+output = sigmoid(np.dot(inputs, weights))</code></pre>
+                    </div>
+                </div>
+
+                <div class="preview-message preview-user">
+                    <div class="preview-message-header">
+                        <div class="preview-avatar">П</div>
+                        <div style="font-weight: 600; font-size: 14px;">Вы</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">14:32</div>
+                    </div>
+                    <div class="preview-content">
+                        Отлично! А как происходит обучение сети?
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Анимации -->
+        <div id="animations" class="demo-section">
+            <h2>✨ Анимации и эффекты</h2>
+            <p>Плавные переходы и интерактивные элементы</p>
+            
+            <div class="demo-grid">
+                <div class="demo-item">
+                    <h3>Hover эффекты</h3>
+                    <p>Наведите мышь на эту карточку</p>
+                    <button class="btn btn-primary" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        Интерактивная кнопка
+                    </button>
+                </div>
+
+                <div class="demo-item">
+                    <h3>Анимация загрузки</h3>
+                    <p>Индикаторы прогресса</p>
+                    <div class="spinner" style="margin: 16px auto;"></div>
+                </div>
+
+                <div class="demo-item">
+                    <h3>Плавные переходы</h3>
+                    <p>Все элементы имеют transition</p>
+                    <div class="demo-buttons">
+                        <button class="btn btn-secondary" onclick="app?.animateElement(this, 'bounce')">
+                            Анимация
+                        </button>
+                        <button class="btn btn-secondary" onclick="app?.animateElement(this, 'fadeIn')">
+                            Появление
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Горячие клавиши -->
+        <div class="demo-section">
+            <h2>⌨️ Горячие клавиши</h2>
+            <p>Попробуйте эти сочетания клавиш:</p>
+            
+            <div class="demo-grid">
+                <div class="demo-item">
+                    <h3>Основные</h3>
+                    <p><kbd>Ctrl + /</kbd> - Показать все горячие клавиши</p>
+                    <p><kbd>Ctrl + K</kbd> - Фокус на поле ввода</p>
+                    <p><kbd>Ctrl + N</kbd> - Новый чат</p>
+                </div>
+                <div class="demo-item">
+                    <h3>Навигация</h3>
+                    <p><kbd>Escape</kbd> - Закрыть модальные окна</p>
+                    <p><kbd>Enter</kbd> - Отправить сообщение</p>
+                    <p><kbd>Shift + Enter</kbd> - Новая строка</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Заключение -->
+        <div class="demo-section" style="text-align: center;">
+            <h2>🚀 Готово к использованию!</h2>
+            <p>Современный, быстрый и красивый интерфейс для вашего AI-ассистента</p>
+            <div style="margin-top: 32px;">
+                <a href="index.html" class="btn btn-primary" style="font-size: 18px; padding: 16px 32px;">
+                    Начать использовать GPTInfernse
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Плавная прокрутка к якорям
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Демо анимации
+        function demoAnimation(element, type) {
+            element.style.animation = `${type} 0.6s ease-out`;
+            setTimeout(() => {
+                element.style.animation = '';
+            }, 600);
+        }
+
+        // Инициализация демо
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎨 GPTInfernse Demo загружен');
+            
+            // Добавляем интерактивность к элементам
+            document.querySelectorAll('.demo-item').forEach((item, index) => {
+                item.style.animationDelay = `${index * 0.1}s`;
+                item.classList.add('fade-in');
+            });
+        });
+    </script>
+</body>
+</html>
