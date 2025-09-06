@@ -26,17 +26,35 @@ restart: ## Перезапустить все сервисы
 
 status: ## Показать статус сервисов
 	@echo "$(BLUE)📊 Статус сервисов:$(NC)"
-	@docker-compose ps
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose ps; \
+	elif docker compose version >/dev/null 2>&1; then \
+		docker compose ps; \
+	else \
+		docker ps --filter "name=gptinfernse"; \
+	fi
 
 logs: ## Показать логи
-	@docker-compose logs --tail=50
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose logs --tail=50; \
+	elif docker compose version >/dev/null 2>&1; then \
+		docker compose logs --tail=50; \
+	else \
+		docker logs --tail=50 gptinfernse-api; \
+	fi
 
 logs-f: ## Следить за логами в реальном времени
-	@docker-compose logs -f
+	@./show-logs
 
 build: ## Пересобрать образы
 	@echo "$(BLUE)🔨 Сборка образов...$(NC)"
-	@docker-compose build --no-cache
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose build --no-cache; \
+	elif docker compose version >/dev/null 2>&1; then \
+		docker compose build --no-cache; \
+	else \
+		echo "Docker Compose не найден!"; \
+	fi
 
 clean: ## Полная очистка (удалить все)
 	@echo "$(YELLOW)🧹 Полная очистка...$(NC)"

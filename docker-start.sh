@@ -35,15 +35,28 @@ fi
 
 log_success "Docker найден: $(docker --version)"
 
-# 2. Останавливаем старые контейнеры
-log_info "Останавливаем старые контейнеры..."
-docker-compose down --remove-orphans 2>/dev/null || docker compose down --remove-orphans 2>/dev/null || true
+# 2. Определяем команду compose
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+else
+    log_error "Docker Compose не найден!"
+    log_error "Установите Docker Desktop или docker-compose"
+    exit 1
+fi
 
-# 3. Очищаем старые образы (опционально)
+log_info "Используем команду: $COMPOSE_CMD"
+
+# 3. Останавливаем старые контейнеры
+log_info "Останавливаем старые контейнеры..."
+$COMPOSE_CMD down --remove-orphans 2>/dev/null || true
+
+# 4. Очищаем старые образы (опционально)
 if [[ "$1" == "--clean" ]]; then
     log_warning "Очищаем старые образы..."
     docker system prune -f
-    docker-compose build --no-cache || docker compose build --no-cache
+    $COMPOSE_CMD build --no-cache
 fi
 
 # 4. Создаем необходимые директории
@@ -53,15 +66,6 @@ chmod 755 logs
 
 # 5. Собираем и запускаем контейнеры
 log_info "Собираем и запускаем контейнеры..."
-
-# Используем docker-compose или docker compose в зависимости от версии
-if command -v docker-compose &> /dev/null; then
-    COMPOSE_CMD="docker-compose"
-else
-    COMPOSE_CMD="docker compose"
-fi
-
-log_info "Используем команду: $COMPOSE_CMD"
 
 # Сборка образов
 log_info "Собираем образы..."

@@ -19,10 +19,17 @@ echo "================================"
 # Определяем команду compose
 if command -v docker-compose &> /dev/null; then
     COMPOSE_CMD="docker-compose"
-else
+elif docker compose version &> /dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
+else
+    log_info "Docker Compose не найден, пробуем остановить контейнеры напрямую..."
+    docker stop $(docker ps -q --filter "name=gptinfernse") 2>/dev/null || true
+    docker rm $(docker ps -aq --filter "name=gptinfernse") 2>/dev/null || true
+    log_success "Контейнеры остановлены!"
+    exit 0
 fi
 
+log_info "Используем команду: $COMPOSE_CMD"
 log_info "Останавливаем все контейнеры..."
 $COMPOSE_CMD down
 

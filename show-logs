@@ -1,8 +1,15 @@
 #!/bin/bash
 # Просмотр логов GPTInfernse Docker
 echo "📄 Логи GPTInfernse Docker..."
+
 if command -v docker-compose &> /dev/null; then
     docker-compose logs -f
-else
+elif docker compose version &> /dev/null 2>&1; then
     docker compose logs -f
+else
+    echo "⚠️  Docker Compose не найден, показываем логи контейнеров напрямую..."
+    docker logs -f gptinfernse-api 2>/dev/null &
+    docker logs -f gptinfernse-worker 2>/dev/null &
+    docker logs -f gptinfernse-frontend 2>/dev/null &
+    wait
 fi
