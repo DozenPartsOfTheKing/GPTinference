@@ -576,7 +576,12 @@
         <!-- Main Chat Area -->
         <div class="main-content">
             <div class="chat-header">
-                <div class="chat-title">GPTInfernse</div>
+                <div class="chat-title">
+                    GPTInfernse
+                    <div class="conversation-id" id="conversationId" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        Новый диалог
+                    </div>
+                </div>
                 <select class="model-selector" id="modelSelector">
                     <option value="llama3.2">LLaMA 3.2</option>
                     <option value="mistral">Mistral</option>
@@ -666,6 +671,16 @@
         }
 
         function newChat() {
+            // Сбрасываем conversation_id для нового диалога
+            currentConversationId = null;
+            console.log('🔄 Начат новый диалог');
+            
+            // Обновляем отображение
+            const conversationIdElement = document.getElementById('conversationId');
+            if (conversationIdElement) {
+                conversationIdElement.textContent = 'Новый диалог';
+            }
+            
             const messagesContainer = document.getElementById('chatMessages');
             messagesContainer.innerHTML = `
                 <div class="messages-container">
@@ -784,6 +799,9 @@
         }
 
         // Отправка сообщения
+        // Глобальная переменная для conversation_id
+        let currentConversationId = null;
+        
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
@@ -791,6 +809,18 @@
             if (!message) return;
             
             const model = document.getElementById('modelSelector').value;
+            
+            // Генерируем conversation_id если его нет
+            if (!currentConversationId) {
+                currentConversationId = 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                console.log('🆔 Новый conversation_id:', currentConversationId);
+                
+                // Обновляем отображение в интерфейсе
+                const conversationIdElement = document.getElementById('conversationId');
+                if (conversationIdElement) {
+                    conversationIdElement.textContent = `ID: ${currentConversationId.substring(0, 20)}...`;
+                }
+            }
             
             // Добавляем сообщение пользователя
             addMessage(message, 'user');
@@ -806,10 +836,11 @@
             
             const startTime = Date.now();
             
-            // Подготавливаем payload
+            // Подготавливаем payload с conversation_id
             const payload = {
                 prompt: message,
                 model: model,
+                conversation_id: currentConversationId,
                 max_tokens: 1000,
                 temperature: 0.7
             };
