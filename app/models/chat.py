@@ -20,7 +20,7 @@ class ChatRequest(BaseModel):
     """Chat request model."""
     
     prompt: str = Field(..., min_length=1, max_length=10000, description="User prompt")
-    model: str = Field(default="llama3", description="Model to use for generation")
+    model: str = Field(default="llama3.2", description="Model to use for generation")
     conversation_id: Optional[str] = Field(default=None, description="Conversation ID for context")
     max_tokens: Optional[int] = Field(default=1000, ge=1, le=4000, description="Maximum tokens to generate")
     temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")

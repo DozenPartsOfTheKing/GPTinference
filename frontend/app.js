@@ -478,7 +478,7 @@ class GPTInfernseApp {
         const state = {
             theme: this.currentTheme,
             chatHistory: chatHistory || [],
-            currentModel: currentModel || 'llama3'
+            currentModel: currentModel || 'llama3.2'
         };
         
         localStorage.setItem('gptinfernse_state', JSON.stringify(state));
