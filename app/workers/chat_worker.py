@@ -109,89 +109,90 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
     
     start_time = time.time()
     
-    with ChatLogContext(
-        "Process Chat Request", 
-        conversation_id=task_request.conversation_id,
-        user_id=task_request.user_id,
-        model=task_request.model
-    ) as chat_logger:
-        
-        chat_logger.info(f"🎯 Processing chat request: {task_request.prompt[:100]}...")
-        
-        ollama_manager = get_ollama_manager()
-        memory_manager = get_hybrid_memory_manager()
-        
-        try:
-            # Initialize services
-            chat_logger.debug("🔧 Initializing services...")
-            await ollama_manager._get_session()
-        
-            # Get or create conversation ID
-            conversation_id = task_request.conversation_id or str(uuid.uuid4())
-            chat_logger.info(f"📝 Using conversation ID: {conversation_id}")
+    try:
+        with ChatLogContext(
+            "Process Chat Request", 
+            conversation_id=task_request.conversation_id,
+            user_id=task_request.user_id,
+            model=task_request.model
+        ) as chat_logger:
             
-            # Build context-aware prompt
-            with MemoryLogContext("Build Context Prompt", conversation_id=conversation_id, user_id=task_request.user_id):
-                enhanced_prompt = await _build_context_prompt(
-                    memory_manager, 
-                    task_request.prompt,
-                    conversation_id,
-                    task_request.user_id,
-                    task_request.model
-                )
+            chat_logger.info(f"🎯 Processing chat request: {task_request.prompt[:100]}...")
             
-            # Prepare Ollama request with enhanced prompt
-            ollama_options = OllamaGenerateOptions(
-                temperature=task_request.chat_request.temperature,
-                top_p=task_request.chat_request.top_p,
-                num_predict=task_request.chat_request.max_tokens,
-            )
+            ollama_manager = get_ollama_manager()
+            memory_manager = get_hybrid_memory_manager()
             
-            ollama_request = OllamaRequest(
-                model=task_request.chat_request.model,
-                prompt=enhanced_prompt,
-                stream=False,
-                options=ollama_options,
-            )
-            
-            # Generate response
-            chat_logger.info(f"🤖 Sending request to Ollama...")
-            chat_logger.debug(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
-            ollama_response = await ollama_manager.generate(ollama_request)
-            
-            processing_time = time.time() - start_time
-            chat_response = ChatResponse(
-                response=ollama_response.response,
-                conversation_id=conversation_id,
-                model=ollama_response.model,
-                processing_time=processing_time,
-                tokens_used=ollama_response.eval_count,
-            )
-            
-            # Save to memory
             try:
-                await _save_conversation_messages(
-                    memory_manager,
-                    conversation_id,
-                    task_request.user_id,
-                    task_request.prompt,
-                    ollama_response.response,
-                    ollama_response.model,
-                    ollama_response.eval_count or 0
+                # Initialize services
+                chat_logger.debug("🔧 Initializing services...")
+                await ollama_manager._get_session()
+            
+                # Get or create conversation ID
+                conversation_id = task_request.conversation_id or str(uuid.uuid4())
+                chat_logger.info(f"📝 Using conversation ID: {conversation_id}")
+                
+                # Build context-aware prompt
+                with MemoryLogContext("Build Context Prompt", conversation_id=conversation_id, user_id=task_request.user_id):
+                    enhanced_prompt = await _build_context_prompt(
+                        memory_manager, 
+                        task_request.prompt,
+                        conversation_id,
+                        task_request.user_id,
+                        task_request.model
+                    )
+                
+                # Prepare Ollama request with enhanced prompt
+                ollama_options = OllamaGenerateOptions(
+                    temperature=task_request.chat_request.temperature,
+                    top_p=task_request.chat_request.top_p,
+                    num_predict=task_request.chat_request.max_tokens,
                 )
+                
+                ollama_request = OllamaRequest(
+                    model=task_request.chat_request.model,
+                    prompt=enhanced_prompt,
+                    stream=False,
+                    options=ollama_options,
+                )
+                
+                # Generate response
+                chat_logger.info(f"🤖 Sending request to Ollama...")
+                chat_logger.debug(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
+                ollama_response = await ollama_manager.generate(ollama_request)
+                
+                processing_time = time.time() - start_time
+                chat_response = ChatResponse(
+                    response=ollama_response.response,
+                    conversation_id=conversation_id,
+                    model=ollama_response.model,
+                    processing_time=processing_time,
+                    tokens_used=ollama_response.eval_count,
+                )
+                
+                # Save to memory
+                try:
+                    await _save_conversation_messages(
+                        memory_manager,
+                        conversation_id,
+                        task_request.user_id,
+                        task_request.prompt,
+                        ollama_response.response,
+                        ollama_response.model,
+                        ollama_response.eval_count or 0
+                    )
+                except Exception as e:
+                    chat_logger.warning(f"Failed to save conversation to memory: {e}")
+                    # Don't fail the task if memory save fails
+                
+                chat_logger.success(
+                    f"✅ Chat task completed successfully in {processing_time:.2f}s, tokens: {ollama_response.eval_count}"
+                )
+                
+                return chat_response.dict()
+                
             except Exception as e:
-                chat_logger.warning(f"Failed to save conversation to memory: {e}")
-                # Don't fail the task if memory save fails
-            
-            chat_logger.success(
-                f"✅ Chat task completed successfully in {processing_time:.2f}s, tokens: {ollama_response.eval_count}"
-            )
-            
-            return chat_response.dict()
-            
-        except Exception as e:
-            chat_logger.error(f"❌ Error in chat processing: {e}")
-            raise
+                chat_logger.error(f"❌ Error in chat processing: {e}")
+                raise
         
     except Exception as e:
         logger.error(f"Error in async chat processing: {e}", exc_info=True)
