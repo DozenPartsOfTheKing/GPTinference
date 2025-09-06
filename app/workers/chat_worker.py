@@ -188,6 +188,10 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
             )
             
             return chat_response.dict()
+            
+        except Exception as e:
+            chat_logger.error(f"❌ Error in chat processing: {e}")
+            raise
         
     except Exception as e:
         logger.error(f"Error in async chat processing: {e}", exc_info=True)
