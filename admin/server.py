@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import requests
+from urllib.parse import urlparse, urlunparse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import socketserver
 from urllib.parse import urlparse, parse_qs
@@ -19,6 +20,29 @@ from loguru_config import setup_admin_loguru, get_admin_logger
 # Setup loguru
 setup_admin_loguru()
 logger = get_admin_logger()
+
+
+def _is_running_in_docker() -> bool:
+    try:
+        return os.path.exists('/.dockerenv')
+    except Exception:
+        return False
+
+
+def get_api_base_url() -> str:
+    """Resolve API base URL with Docker-aware defaults and overrides."""
+    default_url = 'http://api:8000' if _is_running_in_docker() else 'http://localhost:8000'
+    base_url = os.getenv('API_BASE_URL', default_url)
+
+    try:
+        parsed = urlparse(base_url)
+        # If inside docker and target host is localhost/127.0.0.1, rewrite to service name 'api'
+        if _is_running_in_docker() and parsed.hostname in ['localhost', '127.0.0.1']:
+            parsed = parsed._replace(netloc=f"api:{parsed.port or 8000}")
+            base_url = urlunparse(parsed)
+    except Exception:
+        base_url = default_url
+    return base_url
 
 
 class AdminHandler(SimpleHTTPRequestHandler):
@@ -87,7 +111,8 @@ class AdminHandler(SimpleHTTPRequestHandler):
         """Проксирование запросов к основному API"""
         try:
             # Формируем URL для API
-            api_url = f"http://localhost:8000{self.path}"
+            api_base = get_api_base_url()
+            api_url = f"{api_base}{self.path}"
             
             headers = {
                 'Content-Type': 'application/json',
@@ -248,7 +273,8 @@ class AdminHandler(SimpleHTTPRequestHandler):
         """Очистка кэша"""
         try:
             # Отправляем запрос на очистку через API
-            response = requests.post("http://localhost:8000/admin/clear-cache", timeout=10)
+            api_base = get_api_base_url()
+            response = requests.post(f"{api_base}/admin/clear-cache", timeout=10)
             
             if response.status_code == 200:
                 self.send_json_response({"success": True, "message": "Cache cleared"})
@@ -262,7 +288,8 @@ class AdminHandler(SimpleHTTPRequestHandler):
         """Экспорт данных"""
         try:
             # Получаем все данные памяти через API
-            response = requests.get("http://localhost:8000/memory/stats", timeout=30)
+            api_base = get_api_base_url()
+            response = requests.get(f"{api_base}/memory/stats", timeout=30)
             
             if response.status_code == 200:
                 stats = response.json()
@@ -374,7 +401,8 @@ class AdminHandler(SimpleHTTPRequestHandler):
             
             # API Health
             try:
-                api_logs_response = requests.get('http://localhost:8000/health/detailed', timeout=3)
+                api_base = get_api_base_url()
+                api_logs_response = requests.get(f'{api_base}/health/detailed', timeout=3)
                 if api_logs_response.status_code == 200:
                     api_data = api_logs_response.json()
                     logs.append({
@@ -402,7 +430,8 @@ class AdminHandler(SimpleHTTPRequestHandler):
             
             # Memory Stats
             try:
-                memory_response = requests.get('http://localhost:8000/memory/stats', timeout=3)
+                api_base = get_api_base_url()
+                memory_response = requests.get(f'{api_base}/memory/stats', timeout=3)
                 if memory_response.status_code == 200:
                     stats = memory_response.json()
                     logs.append({
@@ -419,29 +448,34 @@ class AdminHandler(SimpleHTTPRequestHandler):
                     'level': 'ERROR'
                 })
             
-            # Redis Status
+            # Redis Status (without docker exec)
             try:
-                import subprocess
-                result = subprocess.run(['docker', 'exec', 'gptinfernse-redis', 'redis-cli', 'keys', '*'], 
-                                     capture_output=True, text=True, timeout=5)
-                if result.returncode == 0:
-                    keys = result.stdout.strip().split('\n') if result.stdout.strip() else []
+                import redis
+                redis_host = os.getenv('REDIS_HOST', 'redis' if _is_running_in_docker() else 'localhost')
+                r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
+                dbsize = r.dbsize()
+                logs.append({
+                    'container': 'redis',
+                    'message': f"🔴 Redis: {dbsize} keys found",
+                    'timestamp': current_time,
+                    'level': 'INFO'
+                })
+                # Sample up to 3 keys via SCAN
+                sample_keys = []
+                try:
+                    for i, key in enumerate(r.scan_iter('*', count=100)):
+                        sample_keys.append(key)
+                        if i >= 2:
+                            break
+                except Exception:
+                    pass
+                if sample_keys:
                     logs.append({
                         'container': 'redis',
-                        'message': f"🔴 Redis: {len(keys)} keys found",
+                        'message': f"🔑 Sample keys: {', '.join(sample_keys)}",
                         'timestamp': current_time,
-                        'level': 'INFO'
+                        'level': 'DEBUG'
                     })
-                    
-                    # Показываем первые несколько ключей для отладки
-                    if keys and keys[0]:
-                        sample_keys = keys[:3]
-                        logs.append({
-                            'container': 'redis',
-                            'message': f"🔑 Sample keys: {', '.join(sample_keys)}",
-                            'timestamp': current_time,
-                            'level': 'DEBUG'
-                        })
             except Exception as e:
                 logs.append({
                     'container': 'redis',
@@ -592,13 +626,14 @@ def run_admin_server(port=3002, host='0.0.0.0'):
     try:
         # Проверяем доступность основного API
         try:
-            response = requests.get("http://localhost:8000/health", timeout=5)
+            api_base = get_api_base_url()
+            response = requests.get(f"{api_base}/health", timeout=5)
             if response.status_code == 200:
                 logger.info("✅ Основной API сервер доступен")
             else:
                 logger.warning(f"⚠️ Основной API отвечает с кодом {response.status_code}")
         except:
-            logger.warning("❌ Основной API сервер недоступен на localhost:8000")
+            logger.warning(f"❌ Основной API сервер недоступен на {get_api_base_url()}")
             logger.warning("   Некоторые функции админки могут не работать")
         
         # Запускаем админ сервер
@@ -608,7 +643,7 @@ def run_admin_server(port=3002, host='0.0.0.0'):
         logger.info(f"\n🔧 GPTInfernse Admin Panel")
         logger.info(f"🌐 Адрес: http://{host}:{port}")
         logger.info(f"📁 Директория: {Path(__file__).parent}")
-        logger.info(f"🔗 API Proxy: http://localhost:8000")
+        logger.info(f"🔗 API Proxy: {get_api_base_url()}")
         logger.info(f"🛑 Остановка: Ctrl+C")
         logger.info("-" * 50)
         
