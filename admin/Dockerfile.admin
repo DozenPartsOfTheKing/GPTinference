@@ -1,0 +1,33 @@
+# Dockerfile для админки GPTInfernse
+FROM python:3.11-slim
+
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Установка Python зависимостей
+RUN pip install --no-cache-dir \
+    requests \
+    psutil \
+    redis
+
+# Создание рабочей директории
+WORKDIR /app
+
+# Копирование файлов админки
+COPY . .
+
+# Создание пользователя для безопасности
+RUN useradd -m -u 1000 admin && chown -R admin:admin /app
+USER admin
+
+# Открытие порта
+EXPOSE 3002
+
+# Проверка здоровья
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3002/ || exit 1
+
+# Запуск сервера
+CMD ["python", "server.py", "3002", "0.0.0.0"]

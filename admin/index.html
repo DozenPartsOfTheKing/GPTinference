@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPTInfernse Admin Panel</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-cogs"></i> GPTInfernse</h2>
+                <p>Admin Panel</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a></li>
+                    <li><a href="#models" class="nav-link" data-section="models">
+                        <i class="fas fa-brain"></i> Модели
+                    </a></li>
+                    <li><a href="#memory" class="nav-link" data-section="memory">
+                        <i class="fas fa-database"></i> Память
+                    </a></li>
+                    <li><a href="#conversations" class="nav-link" data-section="conversations">
+                        <i class="fas fa-comments"></i> Диалоги
+                    </a></li>
+                    <li><a href="#users" class="nav-link" data-section="users">
+                        <i class="fas fa-users"></i> Пользователи
+                    </a></li>
+                    <li><a href="#system" class="nav-link" data-section="system">
+                        <i class="fas fa-server"></i> Система
+                    </a></li>
+                    <li><a href="#logs" class="nav-link" data-section="logs">
+                        <i class="fas fa-file-alt"></i> Логи
+                    </a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 id="page-title">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="status-indicator">
+                        <span id="api-status" class="status-dot offline"></span>
+                        <span>API Status</span>
+                    </div>
+                    <button id="refresh-btn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Sections -->
+            <div class="content-wrapper">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="content-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="total-conversations">-</h3>
+                                <p>Всего диалогов</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="total-users">-</h3>
+                                <p>Пользователей</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="memory-usage">-</h3>
+                                <p>Память (MB)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="active-models">-</h3>
+                                <p>Активных моделей</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-charts">
+                        <div class="chart-card">
+                            <h3>Популярные темы</h3>
+                            <div id="topics-chart" class="chart-content">
+                                <div class="loading">Загрузка...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <h3>Использование моделей</h3>
+                            <div id="models-chart" class="chart-content">
+                                <div class="loading">Загрузка...</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Models Section -->
+                <section id="models-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Управление моделями</h2>
+                        <button id="refresh-models-btn" class="btn btn-secondary">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                    
+                    <div class="models-grid" id="models-grid">
+                        <div class="loading">Загрузка моделей...</div>
+                    </div>
+                </section>
+
+                <!-- Memory Section -->
+                <section id="memory-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Управление памятью</h2>
+                        <div class="section-actions">
+                            <button id="clear-memory-btn" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Очистить память
+                            </button>
+                            <button id="export-memory-btn" class="btn btn-success">
+                                <i class="fas fa-download"></i> Экспорт
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="memory-tabs">
+                        <button class="tab-btn active" data-tab="conversations">Диалоги</button>
+                        <button class="tab-btn" data-tab="users">Пользователи</button>
+                        <button class="tab-btn" data-tab="system">Система</button>
+                    </div>
+                    
+                    <div class="memory-content">
+                        <div id="memory-conversations" class="tab-content active">
+                            <div class="memory-list" id="conversations-list">
+                                <div class="loading">Загрузка диалогов...</div>
+                            </div>
+                        </div>
+                        
+                        <div id="memory-users" class="tab-content">
+                            <div class="memory-list" id="users-list">
+                                <div class="loading">Загрузка пользователей...</div>
+                            </div>
+                        </div>
+                        
+                        <div id="memory-system" class="tab-content">
+                            <div class="memory-list" id="system-list">
+                                <div class="loading">Загрузка системной памяти...</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Conversations Section -->
+                <section id="conversations-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Диалоги</h2>
+                        <div class="search-box">
+                            <input type="text" id="conversation-search" placeholder="Поиск по диалогам...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="conversations-list" id="conversations-detail-list">
+                        <div class="loading">Загрузка диалогов...</div>
+                    </div>
+                </section>
+
+                <!-- Users Section -->
+                <section id="users-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Пользователи</h2>
+                        <div class="search-box">
+                            <input type="text" id="users-search" placeholder="Поиск пользователей...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="users-list" id="users-detail-list">
+                        <div class="loading">Загрузка пользователей...</div>
+                    </div>
+                </section>
+
+                <!-- System Section -->
+                <section id="system-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Системная информация</h2>
+                        <button id="refresh-system-btn" class="btn btn-secondary">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                    
+                    <div class="system-info-grid">
+                        <div class="info-card">
+                            <h3>Система</h3>
+                            <div id="system-info" class="info-content">
+                                <div class="loading">Загрузка...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>Redis</h3>
+                            <div id="redis-info" class="info-content">
+                                <div class="loading">Загрузка...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3>API</h3>
+                            <div id="api-info" class="info-content">
+                                <div class="loading">Загрузка...</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Logs Section -->
+                <section id="logs-section" class="content-section">
+                    <div class="section-header">
+                        <h2>Логи системы</h2>
+                        <div class="section-actions">
+                            <select id="log-level-filter">
+                                <option value="">Все уровни</option>
+                                <option value="ERROR">Ошибки</option>
+                                <option value="WARNING">Предупреждения</option>
+                                <option value="INFO">Информация</option>
+                            </select>
+                            <button id="clear-logs-btn" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Очистить
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="logs-container">
+                        <div id="logs-content" class="logs-content">
+                            <div class="loading">Загрузка логов...</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal для подтверждения действий -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-title">Подтверждение</h3>
+            <p id="modal-message">Вы уверены?</p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="btn btn-secondary">Отмена</button>
+                <button id="modal-confirm" class="btn btn-danger">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        <span id="notification-message"></span>
+        <button id="notification-close">&times;</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -125,6 +125,28 @@ services:
     networks:
       - gptinfernse
 
+  # Админка
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile.admin
+    container_name: gptinfernse-admin
+    ports:
+      - "3002:3002"
+    environment:
+      - API_BASE_URL=http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - gptinfernse
+
   # Flower для мониторинга Celery
   flower:
     image: mher/flower:latest

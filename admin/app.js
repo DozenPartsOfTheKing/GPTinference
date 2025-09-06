@@ -1,0 +1,814 @@
+/**
+ * GPTInfernse Admin Panel JavaScript
+ */
+
+class AdminPanel {
+    constructor() {
+        this.apiBaseUrl = 'http://localhost:8000';
+        this.adminApiUrl = '/admin-api';
+        this.currentSection = 'dashboard';
+        this.refreshInterval = null;
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setupNavigation();
+        this.checkApiStatus();
+        this.loadDashboard();
+        this.startAutoRefresh();
+    }
+
+    setupEventListeners() {
+        // Navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = e.currentTarget.dataset.section;
+                this.navigateToSection(section);
+            });
+        });
+
+        // Refresh buttons
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            this.refreshCurrentSection();
+        });
+
+        document.getElementById('refresh-models-btn').addEventListener('click', () => {
+            this.loadModels();
+        });
+
+        document.getElementById('refresh-system-btn').addEventListener('click', () => {
+            this.loadSystemInfo();
+        });
+
+        // Memory management
+        document.getElementById('clear-memory-btn').addEventListener('click', () => {
+            this.showConfirmModal(
+                'Очистка памяти',
+                'Вы уверены, что хотите очистить всю память? Это действие нельзя отменить.',
+                () => this.clearMemory()
+            );
+        });
+
+        document.getElementById('export-memory-btn').addEventListener('click', () => {
+            this.exportMemory();
+        });
+
+        // Memory tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tab = e.currentTarget.dataset.tab;
+                this.switchMemoryTab(tab);
+            });
+        });
+
+        // Modal
+        document.getElementById('modal-cancel').addEventListener('click', () => {
+            this.hideModal();
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', () => {
+            if (this.modalCallback) {
+                this.modalCallback();
+            }
+            this.hideModal();
+        });
+
+        // Notification
+        document.getElementById('notification-close').addEventListener('click', () => {
+            this.hideNotification();
+        });
+
+        // Search
+        document.getElementById('conversation-search').addEventListener('input', (e) => {
+            this.searchConversations(e.target.value);
+        });
+
+        document.getElementById('users-search').addEventListener('input', (e) => {
+            this.searchUsers(e.target.value);
+        });
+    }
+
+    setupNavigation() {
+        // Set initial active states
+        this.navigateToSection('dashboard');
+    }
+
+    navigateToSection(section) {
+        // Update navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        document.querySelector(`[data-section="${section}"]`).classList.add('active');
+
+        // Update content
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(`${section}-section`).classList.add('active');
+
+        // Update page title
+        const titles = {
+            dashboard: 'Dashboard',
+            models: 'Модели',
+            memory: 'Память',
+            conversations: 'Диалоги',
+            users: 'Пользователи',
+            system: 'Система',
+            logs: 'Логи'
+        };
+        document.getElementById('page-title').textContent = titles[section] || section;
+
+        this.currentSection = section;
+        this.loadSectionData(section);
+    }
+
+    loadSectionData(section) {
+        switch (section) {
+            case 'dashboard':
+                this.loadDashboard();
+                break;
+            case 'models':
+                this.loadModels();
+                break;
+            case 'memory':
+                this.loadMemoryData();
+                break;
+            case 'conversations':
+                this.loadConversations();
+                break;
+            case 'users':
+                this.loadUsers();
+                break;
+            case 'system':
+                this.loadSystemInfo();
+                break;
+            case 'logs':
+                this.loadLogs();
+                break;
+        }
+    }
+
+    refreshCurrentSection() {
+        this.loadSectionData(this.currentSection);
+        this.showNotification('Данные обновлены', 'success');
+    }
+
+    async checkApiStatus() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/health`);
+            const statusDot = document.getElementById('api-status');
+            
+            if (response.ok) {
+                statusDot.classList.remove('offline');
+                statusDot.classList.add('online');
+            } else {
+                statusDot.classList.remove('online');
+                statusDot.classList.add('offline');
+            }
+        } catch (error) {
+            const statusDot = document.getElementById('api-status');
+            statusDot.classList.remove('online');
+            statusDot.classList.add('offline');
+        }
+    }
+
+    async loadDashboard() {
+        try {
+            // Load memory stats
+            const memoryResponse = await fetch(`${this.apiBaseUrl}/memory/stats`);
+            if (memoryResponse.ok) {
+                const memoryStats = await memoryResponse.json();
+                this.updateDashboardStats(memoryStats);
+                this.updateDashboardCharts(memoryStats);
+            }
+
+            // Load models count
+            const modelsResponse = await fetch(`${this.apiBaseUrl}/models`);
+            if (modelsResponse.ok) {
+                const modelsData = await modelsResponse.json();
+                document.getElementById('active-models').textContent = modelsData.models?.length || 0;
+            }
+
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            this.showNotification('Ошибка загрузки dashboard', 'error');
+        }
+    }
+
+    updateDashboardStats(stats) {
+        document.getElementById('total-conversations').textContent = stats.total_conversations || 0;
+        document.getElementById('total-users').textContent = stats.total_users || 0;
+        document.getElementById('memory-usage').textContent = (stats.memory_usage_mb || 0).toFixed(1);
+    }
+
+    updateDashboardCharts(stats) {
+        // Update topics chart
+        const topicsChart = document.getElementById('topics-chart');
+        if (stats.popular_topics && stats.popular_topics.length > 0) {
+            topicsChart.innerHTML = stats.popular_topics.map(topic => `
+                <div class="chart-item">
+                    <span class="chart-label">${topic.topic}</span>
+                    <div class="chart-bar">
+                        <div class="chart-fill" style="width: ${(topic.count / stats.popular_topics[0].count) * 100}%"></div>
+                    </div>
+                    <span class="chart-value">${topic.count}</span>
+                </div>
+            `).join('');
+        } else {
+            topicsChart.innerHTML = '<div class="no-data">Нет данных</div>';
+        }
+
+        // Update models chart
+        const modelsChart = document.getElementById('models-chart');
+        if (stats.model_usage_stats && Object.keys(stats.model_usage_stats).length > 0) {
+            const modelEntries = Object.entries(stats.model_usage_stats);
+            const maxUsage = Math.max(...modelEntries.map(([_, data]) => data.usage_count));
+            
+            modelsChart.innerHTML = modelEntries.map(([model, data]) => `
+                <div class="chart-item">
+                    <span class="chart-label">${model}</span>
+                    <div class="chart-bar">
+                        <div class="chart-fill" style="width: ${(data.usage_count / maxUsage) * 100}%"></div>
+                    </div>
+                    <span class="chart-value">${data.usage_count}</span>
+                </div>
+            `).join('');
+        } else {
+            modelsChart.innerHTML = '<div class="no-data">Нет данных</div>';
+        }
+    }
+
+    async loadModels() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/models`);
+            const data = await response.json();
+            
+            const modelsGrid = document.getElementById('models-grid');
+            
+            if (data.models && data.models.length > 0) {
+                modelsGrid.innerHTML = data.models.map(model => `
+                    <div class="model-card">
+                        <div class="model-header">
+                            <div class="model-name">${model.name}</div>
+                            <div class="model-status active">Активна</div>
+                        </div>
+                        <div class="model-info">
+                            <div class="model-info-item">
+                                <span class="model-info-label">Размер:</span>
+                                <span>${model.size || 'Неизвестно'}</span>
+                            </div>
+                            <div class="model-info-item">
+                                <span class="model-info-label">Изменена:</span>
+                                <span>${new Date(model.modified_at).toLocaleString('ru-RU')}</span>
+                            </div>
+                        </div>
+                        <div class="model-actions">
+                            <button class="btn btn-primary btn-sm" onclick="adminPanel.testModel('${model.name}')">
+                                <i class="fas fa-play"></i> Тест
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="adminPanel.showModelDetails('${model.name}')">
+                                <i class="fas fa-info"></i> Детали
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                modelsGrid.innerHTML = '<div class="no-data">Модели не найдены</div>';
+            }
+        } catch (error) {
+            console.error('Error loading models:', error);
+            document.getElementById('models-grid').innerHTML = '<div class="error">Ошибка загрузки моделей</div>';
+        }
+    }
+
+    async loadMemoryData() {
+        this.switchMemoryTab('conversations');
+    }
+
+    async switchMemoryTab(tab) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`memory-${tab}`).classList.add('active');
+
+        // Load tab data
+        switch (tab) {
+            case 'conversations':
+                await this.loadMemoryConversations();
+                break;
+            case 'users':
+                await this.loadMemoryUsers();
+                break;
+            case 'system':
+                await this.loadMemorySystem();
+                break;
+        }
+    }
+
+    async loadMemoryConversations() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/memory/query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memory_type: 'conversation',
+                    limit: 50
+                })
+            });
+
+            const data = await response.json();
+            const conversationsList = document.getElementById('conversations-list');
+
+            if (data.success && data.data.conversations.length > 0) {
+                conversationsList.innerHTML = data.data.conversations.map(conv => `
+                    <div class="memory-item">
+                        <div class="memory-item-info">
+                            <div class="memory-item-title">Диалог ${conv.conversation_id.substring(0, 8)}...</div>
+                            <div class="memory-item-meta">
+                                ${conv.message_count} сообщений • ${conv.total_tokens} токенов • 
+                                ${new Date(conv.updated_at).toLocaleString('ru-RU')}
+                            </div>
+                        </div>
+                        <div class="memory-item-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="adminPanel.viewConversation('${conv.conversation_id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteConversation('${conv.conversation_id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                conversationsList.innerHTML = '<div class="no-data">Диалоги не найдены</div>';
+            }
+        } catch (error) {
+            console.error('Error loading memory conversations:', error);
+            document.getElementById('conversations-list').innerHTML = '<div class="error">Ошибка загрузки</div>';
+        }
+    }
+
+    async loadMemoryUsers() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/memory/query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memory_type: 'user_context',
+                    limit: 50
+                })
+            });
+
+            const data = await response.json();
+            const usersList = document.getElementById('users-list');
+
+            if (data.success && data.data.users.length > 0) {
+                usersList.innerHTML = data.data.users.map(user => `
+                    <div class="memory-item">
+                        <div class="memory-item-info">
+                            <div class="memory-item-title">Пользователь ${user.user_id}</div>
+                            <div class="memory-item-meta">
+                                ${user.conversation_history.length} диалогов • ${user.facts.length} фактов • 
+                                ${new Date(user.last_active).toLocaleString('ru-RU')}
+                            </div>
+                        </div>
+                        <div class="memory-item-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="adminPanel.viewUser('${user.user_id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteUser('${user.user_id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                usersList.innerHTML = '<div class="no-data">Пользователи не найдены</div>';
+            }
+        } catch (error) {
+            console.error('Error loading memory users:', error);
+            document.getElementById('users-list').innerHTML = '<div class="error">Ошибка загрузки</div>';
+        }
+    }
+
+    async loadMemorySystem() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/memory/query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memory_type: 'system_facts',
+                    limit: 50
+                })
+            });
+
+            const data = await response.json();
+            const systemList = document.getElementById('system-list');
+
+            if (data.success && data.data.system_memories.length > 0) {
+                systemList.innerHTML = data.data.system_memories.map(mem => `
+                    <div class="memory-item">
+                        <div class="memory-item-info">
+                            <div class="memory-item-title">${mem.key}</div>
+                            <div class="memory-item-meta">
+                                Приоритет: ${mem.priority} • Обращений: ${mem.access_count} • 
+                                ${new Date(mem.updated_at).toLocaleString('ru-RU')}
+                            </div>
+                        </div>
+                        <div class="memory-item-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="adminPanel.viewSystemMemory('${mem.key}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteSystemMemory('${mem.key}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                systemList.innerHTML = '<div class="no-data">Системная память не найдена</div>';
+            }
+        } catch (error) {
+            console.error('Error loading system memory:', error);
+            document.getElementById('system-list').innerHTML = '<div class="error">Ошибка загрузки</div>';
+        }
+    }
+
+    async loadConversations() {
+        // This would load detailed conversation view
+        await this.loadMemoryConversations();
+    }
+
+    async loadUsers() {
+        // This would load detailed users view
+        await this.loadMemoryUsers();
+    }
+
+    async loadSystemInfo() {
+        try {
+            // Load system info
+            const systemResponse = await fetch(`${this.adminApiUrl}/system-info`);
+            if (systemResponse.ok) {
+                const systemData = await systemResponse.json();
+                this.updateSystemInfo(systemData);
+            }
+
+            // Load Redis stats
+            const redisResponse = await fetch(`${this.adminApiUrl}/redis-stats`);
+            if (redisResponse.ok) {
+                const redisData = await redisResponse.json();
+                this.updateRedisInfo(redisData);
+            }
+
+            // Load API info
+            const apiResponse = await fetch(`${this.apiBaseUrl}/info`);
+            if (apiResponse.ok) {
+                const apiData = await apiResponse.json();
+                this.updateApiInfo(apiData);
+            }
+
+        } catch (error) {
+            console.error('Error loading system info:', error);
+        }
+    }
+
+    updateSystemInfo(data) {
+        const systemInfo = document.getElementById('system-info');
+        systemInfo.innerHTML = `
+            <div class="info-item">
+                <span class="info-label">Платформа:</span>
+                <span class="info-value">${data.platform || 'Неизвестно'}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Python:</span>
+                <span class="info-value">${data.python_version || 'Неизвестно'}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">CPU:</span>
+                <span class="info-value">${data.cpu_count || 'Неизвестно'} ядер (${data.cpu_percent || 0}%)</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Память:</span>
+                <span class="info-value">${data.memory ? Math.round(data.memory.percent) : 0}% использовано</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Диск:</span>
+                <span class="info-value">${data.disk ? Math.round(data.disk.percent) : 0}% использовано</span>
+            </div>
+        `;
+    }
+
+    updateRedisInfo(data) {
+        const redisInfo = document.getElementById('redis-info');
+        if (data.error) {
+            redisInfo.innerHTML = `<div class="error">${data.error}</div>`;
+        } else {
+            redisInfo.innerHTML = `
+                <div class="info-item">
+                    <span class="info-label">Клиенты:</span>
+                    <span class="info-value">${data.connected_clients || 0}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Память:</span>
+                    <span class="info-value">${data.used_memory_human || '0B'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Команды:</span>
+                    <span class="info-value">${data.total_commands_processed || 0}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Uptime:</span>
+                    <span class="info-value">${Math.round((data.uptime_in_seconds || 0) / 3600)} часов</span>
+                </div>
+            `;
+        }
+    }
+
+    updateApiInfo(data) {
+        const apiInfo = document.getElementById('api-info');
+        apiInfo.innerHTML = `
+            <div class="info-item">
+                <span class="info-label">Версия:</span>
+                <span class="info-value">${data.version || 'Неизвестно'}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Режим:</span>
+                <span class="info-value">${data.environment || 'Неизвестно'}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Ollama:</span>
+                <span class="info-value">${data.ollama_url || 'Не настроено'}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Функции:</span>
+                <span class="info-value">
+                    ${data.features ? Object.entries(data.features).filter(([k, v]) => v).map(([k]) => k).join(', ') : 'Нет'}
+                </span>
+            </div>
+        `;
+    }
+
+    async loadLogs() {
+        // Placeholder for logs functionality
+        const logsContent = document.getElementById('logs-content');
+        logsContent.innerHTML = `
+            <div class="log-entry">
+                <span class="log-timestamp">[2024-01-01 12:00:00]</span>
+                <span class="log-level INFO">INFO</span>
+                <span class="log-message">Система запущена успешно</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-timestamp">[2024-01-01 12:01:00]</span>
+                <span class="log-level INFO">INFO</span>
+                <span class="log-message">Подключение к Redis установлено</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-timestamp">[2024-01-01 12:02:00]</span>
+                <span class="log-level WARNING">WARNING</span>
+                <span class="log-message">Высокое использование памяти</span>
+            </div>
+            <div class="no-data">Реальные логи будут доступны в следующей версии</div>
+        `;
+    }
+
+    // Action methods
+    async testModel(modelName) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: 'Тестовое сообщение',
+                    model: modelName,
+                    max_tokens: 50
+                })
+            });
+
+            if (response.ok) {
+                this.showNotification(`Модель ${modelName} работает корректно`, 'success');
+            } else {
+                this.showNotification(`Ошибка тестирования модели ${modelName}`, 'error');
+            }
+        } catch (error) {
+            this.showNotification(`Ошибка тестирования модели ${modelName}`, 'error');
+        }
+    }
+
+    showModelDetails(modelName) {
+        this.showNotification(`Детали модели ${modelName} (функция в разработке)`, 'info');
+    }
+
+    async clearMemory() {
+        try {
+            const response = await fetch(`${this.adminApiUrl}/clear-cache`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                this.showNotification('Память очищена успешно', 'success');
+                this.loadMemoryData();
+            } else {
+                this.showNotification('Ошибка очистки памяти', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Ошибка очистки памяти', 'error');
+        }
+    }
+
+    async exportMemory() {
+        try {
+            const response = await fetch(`${this.adminApiUrl}/export-data`);
+            const data = await response.json();
+
+            if (response.ok) {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `gptinfernse-memory-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                this.showNotification('Данные экспортированы успешно', 'success');
+            } else {
+                this.showNotification('Ошибка экспорта данных', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Ошибка экспорта данных', 'error');
+        }
+    }
+
+    viewConversation(conversationId) {
+        this.showNotification(`Просмотр диалога ${conversationId} (функция в разработке)`, 'info');
+    }
+
+    deleteConversation(conversationId) {
+        this.showConfirmModal(
+            'Удаление диалога',
+            `Вы уверены, что хотите удалить диалог ${conversationId}?`,
+            async () => {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/memory/conversation/${conversationId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        this.showNotification('Диалог удален', 'success');
+                        this.loadMemoryConversations();
+                    } else {
+                        this.showNotification('Ошибка удаления диалога', 'error');
+                    }
+                } catch (error) {
+                    this.showNotification('Ошибка удаления диалога', 'error');
+                }
+            }
+        );
+    }
+
+    viewUser(userId) {
+        this.showNotification(`Просмотр пользователя ${userId} (функция в разработке)`, 'info');
+    }
+
+    deleteUser(userId) {
+        this.showNotification(`Удаление пользователя ${userId} (функция в разработке)`, 'info');
+    }
+
+    viewSystemMemory(key) {
+        this.showNotification(`Просмотр системной памяти ${key} (функция в разработке)`, 'info');
+    }
+
+    deleteSystemMemory(key) {
+        this.showNotification(`Удаление системной памяти ${key} (функция в разработке)`, 'info');
+    }
+
+    searchConversations(query) {
+        // Placeholder for search functionality
+        console.log('Searching conversations:', query);
+    }
+
+    searchUsers(query) {
+        // Placeholder for search functionality
+        console.log('Searching users:', query);
+    }
+
+    // UI Helper methods
+    showConfirmModal(title, message, callback) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        document.getElementById('confirm-modal').classList.add('active');
+        this.modalCallback = callback;
+    }
+
+    hideModal() {
+        document.getElementById('confirm-modal').classList.remove('active');
+        this.modalCallback = null;
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        const messageEl = document.getElementById('notification-message');
+        
+        messageEl.textContent = message;
+        notification.className = `notification show ${type}`;
+        
+        setTimeout(() => {
+            this.hideNotification();
+        }, 5000);
+    }
+
+    hideNotification() {
+        document.getElementById('notification').classList.remove('show');
+    }
+
+    startAutoRefresh() {
+        // Auto-refresh every 30 seconds
+        this.refreshInterval = setInterval(() => {
+            this.checkApiStatus();
+            if (this.currentSection === 'dashboard') {
+                this.loadDashboard();
+            }
+        }, 30000);
+    }
+
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+    }
+}
+
+// Initialize admin panel when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.adminPanel = new AdminPanel();
+});
+
+// Add chart styles to CSS
+const chartStyles = `
+    .chart-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        gap: 0.75rem;
+    }
+    
+    .chart-label {
+        min-width: 80px;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+    
+    .chart-bar {
+        flex: 1;
+        height: 8px;
+        background-color: var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .chart-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+        transition: width 0.3s ease;
+    }
+    
+    .chart-value {
+        min-width: 40px;
+        text-align: right;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .no-data {
+        text-align: center;
+        color: var(--text-secondary);
+        font-style: italic;
+        padding: 2rem;
+    }
+    
+    .error {
+        text-align: center;
+        color: var(--danger-color);
+        padding: 2rem;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+    }
+`;
+
+// Inject chart styles
+const styleSheet = document.createElement('style');
+styleSheet.textContent = chartStyles;
+document.head.appendChild(styleSheet);

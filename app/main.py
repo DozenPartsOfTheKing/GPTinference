@@ -11,9 +11,10 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from .core.config import settings
 from .utils.logging import setup_logging, LoggingMiddleware
-from .api.routes import chat, health, models
+from .api.routes import chat, health, models, memory
 from .services.ollama_manager import get_ollama_manager
 from .services.rate_limiter import get_rate_limiter, RateLimitExceeded
+from .services.memory_manager import close_memory_manager
 
 # Setup logging
 setup_logging()
@@ -69,6 +70,9 @@ async def lifespan(app: FastAPI):
         rate_limiter = get_rate_limiter()
         await rate_limiter.close()
         
+        # Close memory manager
+        await close_memory_manager()
+        
         logger.info("Application shutdown completed")
         
     except Exception as e:
@@ -114,6 +118,7 @@ if settings.enable_metrics:
 app.include_router(health.router)
 app.include_router(models.router)
 app.include_router(chat.router)
+app.include_router(memory.router)
 
 
 # Global exception handlers
@@ -158,6 +163,7 @@ async def root():
         "health": "/health",
         "models": "/models",
         "chat": "/chat",
+        "memory": "/memory",
     }
 
 

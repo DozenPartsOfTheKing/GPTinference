@@ -11,8 +11,10 @@ from celery.exceptions import Retry
 
 from ..utils.celery_app import celery_app
 from ..services.ollama_manager import get_ollama_manager
+from ..services.memory_manager import get_memory_manager
 from ..models.chat import ChatRequest, ChatResponse, ChatTaskRequest
 from ..models.ollama import OllamaRequest, OllamaGenerateOptions
+from ..models.memory import ConversationMessage
 
 logger = logging.getLogger(__name__)
 
@@ -131,13 +133,56 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
         processing_time = time.time() - start_time
         
         # Create response
+        conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
         chat_response = ChatResponse(
             response=ollama_response.response,
-            conversation_id=task_request.chat_request.conversation_id or str(uuid.uuid4()),
+            conversation_id=conversation_id,
             model=ollama_response.model,
             processing_time=processing_time,
             tokens_used=ollama_response.eval_count,
         )
+        
+        # Save to memory
+        try:
+            memory_manager = get_memory_manager()
+            
+            # Save user message
+            user_message = ConversationMessage(
+                id=str(uuid.uuid4()),
+                role="user",
+                content=task_request.chat_request.prompt,
+                tokens=len(task_request.chat_request.prompt.split()),  # Approximate token count
+                model=None
+            )
+            
+            await memory_manager.save_conversation_message(
+                conversation_id=conversation_id,
+                message=user_message,
+                user_id=task_request.user_id,
+                ttl_hours=24 * 7  # Keep for 7 days
+            )
+            
+            # Save assistant response
+            assistant_message = ConversationMessage(
+                id=str(uuid.uuid4()),
+                role="assistant",
+                content=ollama_response.response,
+                tokens=ollama_response.eval_count,
+                model=ollama_response.model
+            )
+            
+            await memory_manager.save_conversation_message(
+                conversation_id=conversation_id,
+                message=assistant_message,
+                user_id=task_request.user_id,
+                ttl_hours=24 * 7  # Keep for 7 days
+            )
+            
+            logger.info(f"Saved conversation messages to memory for {conversation_id}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to save conversation to memory: {e}")
+            # Don't fail the task if memory save fails
         
         logger.info(
             f"Chat task {task_request.task_id} completed successfully",
@@ -146,6 +191,7 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                 "processing_time": processing_time,
                 "tokens_used": ollama_response.eval_count,
                 "response_length": len(ollama_response.response),
+                "conversation_id": conversation_id,
             }
         )
         
