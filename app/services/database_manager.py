@@ -1,5 +1,6 @@
 """Database manager for PostgreSQL operations."""
 
+import json
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -95,7 +96,7 @@ class DatabaseManager:
                 user_id,
                 user_identifier,
                 display_name,
-                preferences or {},
+                json.dumps(preferences or {}),
                 []
             )
             
@@ -122,7 +123,7 @@ class DatabaseManager:
                 WHERE user_identifier = $1 AND is_active = TRUE
                 """,
                 user_identifier,
-                preferences
+                json.dumps(preferences)
             )
             return result != "UPDATE 0"
     
@@ -262,7 +263,7 @@ class DatabaseManager:
                 content,
                 tokens,
                 model,
-                metadata or {}
+                json.dumps(metadata or {})
             )
             
             # Update conversation stats
