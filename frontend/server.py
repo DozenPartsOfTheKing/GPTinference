@@ -13,6 +13,12 @@ import requests
 from pathlib import Path
 import mimetypes
 
+from loguru_config import setup_frontend_loguru, get_frontend_logger
+
+# Setup loguru
+setup_frontend_loguru()
+logger = get_frontend_logger()
+
 class GPTInfernseHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(Path(__file__).parent), **kwargs)

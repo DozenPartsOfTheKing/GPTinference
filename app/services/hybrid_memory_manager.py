@@ -9,6 +9,9 @@ from typing import Any, Dict, List, Optional
 import redis.asyncio as redis
 from redis.asyncio import Redis
 
+from ..utils.loguru_config import get_logger, MemoryLogContext, DatabaseLogContext
+from ..utils.redis_tracer import trace_redis_operations
+
 from ..core.config import get_settings
 from ..models.memory import (
     ConversationMemory,
@@ -19,7 +22,7 @@ from ..models.memory import (
 )
 from .database_manager import get_database_manager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HybridMemoryManager:
@@ -34,6 +37,7 @@ class HybridMemoryManager:
     def __init__(self):
         """Initialize hybrid memory manager."""
         self.redis: Optional[Redis] = None
+        self.redis_tracer = None
         self.settings = get_settings()
         
         # Cache TTL settings
@@ -49,6 +53,9 @@ class HybridMemoryManager:
                 encoding="utf-8",
                 decode_responses=True
             )
+            # Initialize Redis tracer
+            self.redis_tracer = trace_redis_operations(self.redis)
+            logger.info("🔴 Redis connection and tracer initialized")
         return self.redis
     
     async def close(self):
@@ -66,22 +73,35 @@ class HybridMemoryManager:
         ttl_hours: Optional[int] = None
     ) -> bool:
         """Save message to conversation (PostgreSQL + Redis cache)."""
-        try:
-            db = await get_database_manager()
+        
+        with MemoryLogContext(
+            "Save Conversation Message", 
+            conversation_id=conversation_id, 
+            user_id=user_id,
+            message_role=message.role
+        ) as mem_logger:
             
-            # Ensure conversation exists in PostgreSQL
-            conversation = await db.get_conversation(conversation_id, include_messages=False)
-            if not conversation:
-                # Create conversation
-                await db.create_conversation(
+            mem_logger.info(f"💾 Saving {message.role} message: {message.content[:100]}...")
+            
+            try:
+                db = await get_database_manager()
+                
+                # Ensure conversation exists in PostgreSQL
+                mem_logger.debug("🔍 Checking if conversation exists...")
+                conversation = await db.get_conversation(conversation_id, include_messages=False)
+                if not conversation:
+                    # Create conversation
+                    mem_logger.info("🆕 Creating new conversation...")
+                    await db.create_conversation(
+                        conversation_id=conversation_id,
+                        user_identifier=user_id or "anonymous",
+                        ttl_hours=ttl_hours or 24 * 7  # 7 days default
+                    )
+                
+                # Save message to PostgreSQL
+                mem_logger.debug("💾 Saving message to PostgreSQL...")
+                success = await db.add_message(
                     conversation_id=conversation_id,
-                    user_identifier=user_id or "anonymous",
-                    ttl_hours=ttl_hours or 24 * 7  # 7 days default
-                )
-            
-            # Save message to PostgreSQL
-            success = await db.add_message(
-                conversation_id=conversation_id,
                 message_id=message.id,
                 role=message.role,
                 content=message.content,
@@ -90,11 +110,14 @@ class HybridMemoryManager:
                 metadata=message.metadata
             )
             
-            if success:
-                # Invalidate Redis cache for this conversation
-                redis_client = await self._get_redis()
-                cache_key = f"conversation:{conversation_id}"
-                await redis_client.delete(cache_key)
+                if success:
+                    # Invalidate Redis cache for this conversation
+                    await self._get_redis()  # Initialize tracer
+                    cache_key = f"conversation:{conversation_id}"
+                    await self.redis_tracer.trace_delete(
+                        cache_key, 
+                        description=f"Invalidate cache after saving message"
+                    )
                 
                 # Update user facts if it's a user message
                 if message.role == "user" and user_id:
@@ -116,11 +139,14 @@ class HybridMemoryManager:
     ) -> Optional[ConversationMemory]:
         """Get conversation memory (Redis cache first, then PostgreSQL)."""
         try:
-            redis_client = await self._get_redis()
+            await self._get_redis()  # Initialize tracer
             cache_key = f"conversation:{conversation_id}"
             
             # Try Redis cache first
-            cached_data = await redis_client.get(cache_key)
+            cached_data = await self.redis_tracer.trace_get(
+                cache_key, 
+                description=f"Get conversation from cache (limit: {limit})"
+            )
             if cached_data:
                 try:
                     data = json.loads(cached_data)
@@ -177,10 +203,11 @@ class HybridMemoryManager:
             
             # Cache in Redis for future requests
             try:
-                await redis_client.setex(
+                await self.redis_tracer.trace_set(
                     cache_key,
-                    self.CONVERSATION_CACHE_TTL,
-                    conversation.json()
+                    conversation.json(),
+                    ttl=self.CONVERSATION_CACHE_TTL,
+                    description=f"Cache conversation from database"
                 )
             except Exception as e:
                 logger.warning(f"Failed to cache conversation: {e}")

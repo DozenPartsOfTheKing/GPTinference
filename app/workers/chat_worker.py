@@ -9,6 +9,8 @@ from typing import Dict, Any
 from celery import Task
 from celery.exceptions import Retry
 
+from ..utils.loguru_config import get_logger, ChatLogContext, MemoryLogContext
+
 from ..utils.celery_app import celery_app
 from ..services.ollama_manager import get_ollama_manager
 from ..services.hybrid_memory_manager import get_hybrid_memory_manager
@@ -16,7 +18,7 @@ from ..models.chat import ChatRequest, ChatResponse, ChatTaskRequest
 from ..models.ollama import OllamaRequest, OllamaGenerateOptions
 from ..models.memory import ConversationMessage
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CallbackTask(Task):
@@ -106,24 +108,37 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
     """Async chat processing logic with memory integration."""
     
     start_time = time.time()
-    ollama_manager = get_ollama_manager()
-    memory_manager = get_hybrid_memory_manager()
     
-    try:
-        # Initialize services
-        await ollama_manager._get_session()
+    with ChatLogContext(
+        "Process Chat Request", 
+        conversation_id=task_request.conversation_id,
+        user_id=task_request.user_id,
+        model=task_request.model
+    ) as chat_logger:
         
-        # Get or create conversation ID
-        conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
+        chat_logger.info(f"🎯 Processing chat request: {task_request.prompt[:100]}...")
         
-        # Build context-aware prompt
-        enhanced_prompt = await _build_context_prompt(
-            memory_manager, 
-            task_request.chat_request.prompt,
-            conversation_id,
-            task_request.user_id,
-            task_request.chat_request.model
-        )
+        ollama_manager = get_ollama_manager()
+        memory_manager = get_hybrid_memory_manager()
+        
+        try:
+            # Initialize services
+            chat_logger.debug("🔧 Initializing services...")
+            await ollama_manager._get_session()
+        
+            # Get or create conversation ID
+            conversation_id = task_request.conversation_id or str(uuid.uuid4())
+            chat_logger.info(f"📝 Using conversation ID: {conversation_id}")
+            
+            # Build context-aware prompt
+            with MemoryLogContext("Build Context Prompt", conversation_id=conversation_id, user_id=task_request.user_id):
+                enhanced_prompt = await _build_context_prompt(
+                    memory_manager, 
+                    task_request.prompt,
+                    conversation_id,
+                    task_request.user_id,
+                    task_request.model
+                )
         
         # Prepare Ollama request with enhanced prompt
         ollama_options = OllamaGenerateOptions(

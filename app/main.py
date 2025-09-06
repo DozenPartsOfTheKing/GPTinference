@@ -11,6 +11,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from .core.config import settings
 from .utils.logging import setup_logging, LoggingMiddleware
+from .utils.loguru_config import setup_loguru, get_logger
 from .api.routes import chat, health, models, memory
 from .services.ollama_manager import get_ollama_manager
 from .services.rate_limiter import get_rate_limiter, RateLimitExceeded
@@ -19,7 +20,8 @@ from .services.database_manager import close_database_manager
 
 # Setup logging
 setup_logging()
-logger = logging.getLogger(__name__)
+setup_loguru()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager

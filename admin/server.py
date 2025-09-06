@@ -13,11 +13,12 @@ import socketserver
 from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 import mimetypes
-import logging
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from loguru_config import setup_admin_loguru, get_admin_logger
+
+# Setup loguru
+setup_admin_loguru()
+logger = get_admin_logger()
 
 
 class AdminHandler(SimpleHTTPRequestHandler):
@@ -299,7 +300,7 @@ class AdminHandler(SimpleHTTPRequestHandler):
             self.send_json_response({"error": str(e)})
     
     def handle_logs(self):
-        """Получение логов системы через API и файловую систему"""
+        """Получение всех логов системы с детальным трейсингом"""
         try:
             import os
             import glob
@@ -307,80 +308,165 @@ class AdminHandler(SimpleHTTPRequestHandler):
             
             logs = []
             
-            # Попытка получить логи из файловой системы
-            log_paths = [
-                '/app/logs/*.log',
-                '/var/log/*.log',
-                './logs/*.log'
+            # Все возможные лог файлы
+            log_files = [
+                '/app/logs/app.log',
+                '/app/logs/errors.log', 
+                '/app/logs/memory.log',
+                '/app/logs/chat.log',
+                '/app/logs/database.log',
+                '/app/logs/api.log',
+                '/app/logs/admin.log',
+                '/app/logs/frontend.log',
+                './logs/app.log',
+                './logs/errors.log',
+                './logs/memory.log', 
+                './logs/chat.log',
+                './logs/database.log',
+                './logs/api.log',
+                './logs/admin.log',
+                './logs/frontend.log'
             ]
             
-            for pattern in log_paths:
+            # Читаем логи из всех доступных файлов
+            for log_file in log_files:
                 try:
-                    for log_file in glob.glob(pattern):
-                        if os.path.exists(log_file):
-                            with open(log_file, 'r') as f:
-                                lines = f.readlines()
-                                for line in lines[-20:]:  # Последние 20 строк
-                                    if line.strip():
-                                        logs.append({
-                                            'container': os.path.basename(log_file),
-                                            'message': line.strip(),
-                                            'timestamp': datetime.now().strftime('%H:%M:%S')
-                                        })
-                except Exception:
-                    continue
+                    if os.path.isfile(log_file):
+                        logger.info(f"📖 Reading logs from: {log_file}")
+                        with open(log_file, 'r', encoding='utf-8') as f:
+                            lines = f.readlines()[-50:]  # Последние 50 строк на файл
+                            
+                            for line in lines:
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                    
+                                # Парсим формат loguru: YYYY-MM-DD HH:mm:ss.SSS | LEVEL | MESSAGE
+                                try:
+                                    parts = line.split(' | ', 2)
+                                    if len(parts) >= 3:
+                                        timestamp = parts[0]
+                                        level = parts[1].strip()
+                                        message = parts[2]
+                                    else:
+                                        timestamp = datetime.now().strftime('%H:%M:%S')
+                                        level = 'INFO'
+                                        message = line
+                                except:
+                                    timestamp = datetime.now().strftime('%H:%M:%S')
+                                    level = 'INFO'
+                                    message = line
+                                
+                                logs.append({
+                                    'container': os.path.basename(log_file).replace('.log', ''),
+                                    'message': message,
+                                    'timestamp': timestamp,
+                                    'level': level
+                                })
+                                
+                except Exception as e:
+                    logger.debug(f"Could not read {log_file}: {e}")
             
-            # Получаем логи через API
+            # Добавляем статус системы в реальном времени
+            current_time = datetime.now().strftime('%H:%M:%S')
+            
+            # API Health
             try:
-                api_logs_response = requests.get('http://localhost:8000/health/detailed', timeout=5)
+                api_logs_response = requests.get('http://localhost:8000/health/detailed', timeout=3)
                 if api_logs_response.status_code == 200:
                     api_data = api_logs_response.json()
                     logs.append({
-                        'container': 'api-health',
-                        'message': f"API Status: {api_data.get('status', 'unknown')}",
-                        'timestamp': datetime.now().strftime('%H:%M:%S')
+                        'container': 'system',
+                        'message': f"🏥 API Health: {api_data.get('status', 'unknown')}",
+                        'timestamp': current_time,
+                        'level': 'INFO'
                     })
                     
                     if 'services' in api_data:
                         for service, status in api_data['services'].items():
                             logs.append({
-                                'container': f'service-{service}',
-                                'message': f"{service}: {status}",
-                                'timestamp': datetime.now().strftime('%H:%M:%S')
+                                'container': 'system',
+                                'message': f"🔧 {service}: {status}",
+                                'timestamp': current_time,
+                                'level': 'INFO'
                             })
-            except Exception:
-                pass
+            except Exception as e:
+                logs.append({
+                    'container': 'system',
+                    'message': f"❌ API Health check failed: {e}",
+                    'timestamp': current_time,
+                    'level': 'ERROR'
+                })
             
-            # Добавляем системные логи если других нет
-            if not logs:
-                current_time = datetime.now().strftime('%H:%M:%S')
-                logs = [
-                    {'container': 'admin', 'message': 'Admin panel started successfully', 'timestamp': current_time},
-                    {'container': 'admin', 'message': 'Memory system initialized', 'timestamp': current_time},
-                    {'container': 'admin', 'message': 'API proxy configured', 'timestamp': current_time},
-                    {'container': 'system', 'message': 'All services running normally', 'timestamp': current_time},
-                ]
-            
-            # Добавляем статистику памяти как лог
+            # Memory Stats
             try:
-                memory_response = requests.get('http://localhost:8000/memory/stats', timeout=5)
+                memory_response = requests.get('http://localhost:8000/memory/stats', timeout=3)
                 if memory_response.status_code == 200:
                     stats = memory_response.json()
                     logs.append({
                         'container': 'memory',
-                        'message': f"Memory: {stats.get('total_conversations', 0)} conversations, {stats.get('total_users', 0)} users",
-                        'timestamp': datetime.now().strftime('%H:%M:%S')
+                        'message': f"💾 Stats: {stats.get('total_conversations', 0)} conversations, {stats.get('total_users', 0)} users, {stats.get('total_messages', 0)} messages",
+                        'timestamp': current_time,
+                        'level': 'INFO'
                     })
-            except Exception:
-                pass
+            except Exception as e:
+                logs.append({
+                    'container': 'memory',
+                    'message': f"❌ Memory stats failed: {e}",
+                    'timestamp': current_time,
+                    'level': 'ERROR'
+                })
             
+            # Redis Status
+            try:
+                import subprocess
+                result = subprocess.run(['docker', 'exec', 'gptinfernse-redis', 'redis-cli', 'keys', '*'], 
+                                     capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    keys = result.stdout.strip().split('\n') if result.stdout.strip() else []
+                    logs.append({
+                        'container': 'redis',
+                        'message': f"🔴 Redis: {len(keys)} keys found",
+                        'timestamp': current_time,
+                        'level': 'INFO'
+                    })
+                    
+                    # Показываем первые несколько ключей для отладки
+                    if keys and keys[0]:
+                        sample_keys = keys[:3]
+                        logs.append({
+                            'container': 'redis',
+                            'message': f"🔑 Sample keys: {', '.join(sample_keys)}",
+                            'timestamp': current_time,
+                            'level': 'DEBUG'
+                        })
+            except Exception as e:
+                logs.append({
+                    'container': 'redis',
+                    'message': f"❌ Redis check failed: {e}",
+                    'timestamp': current_time,
+                    'level': 'ERROR'
+                })
+            
+            # Если нет логов, добавляем базовые
+            if not logs:
+                logs = [
+                    {'container': 'admin', 'message': '⚠️ No logs found in any location', 'timestamp': current_time, 'level': 'WARNING'}
+                ]
+            
+            # Сортируем по времени (новые сверху) и ограничиваем количество
+            logs.sort(key=lambda x: x['timestamp'], reverse=True)
+            logs = logs[:300]  # Максимум 300 записей
+            
+            logger.info(f"📊 Collected {len(logs)} log entries")
             self.send_json_response({'logs': logs})
             
         except Exception as e:
             current_time = datetime.now().strftime('%H:%M:%S')
+            logger.error(f"Error in handle_logs: {e}")
             self.send_json_response({
                 'logs': [
-                    {'container': 'error', 'message': f'Log system error: {str(e)}', 'timestamp': current_time}
+                    {'container': 'error', 'message': f'❌ Log system error: {str(e)}', 'timestamp': current_time, 'level': 'ERROR'}
                 ]
             })
     

@@ -20,6 +20,7 @@ redis>=4.5.2,<5.0.0
 # Monitoring and logging
 prometheus-fastapi-instrumentator==6.1.0
 structlog==23.2.0
+loguru==0.7.2
 
 # Security
 python-jose[cryptography]==3.3.0
