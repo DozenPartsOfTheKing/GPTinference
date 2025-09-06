@@ -91,7 +91,7 @@ def final_test():
     # Логи на ошибки
     print("🔍 Проверка ошибок...")
     try:
-        logs_cmd = ['docker', 'logs', '--tail', '30', 'gptinfernse-api']
+        logs_cmd = ['docker', 'logs', '--tail', '120', 'gptinfernse-api']
         logs_result = subprocess.run(logs_cmd, capture_output=True, text=True)
         
         if logs_result.returncode == 0:
@@ -109,6 +109,13 @@ def final_test():
                     print(f"  {error}")
             else:
                 print("✅ Критических ошибок не найдено")
+
+        # Дополнительно покажем хвост логов worker
+        worker_logs_cmd = ['docker', 'logs', '--tail', '120', 'gptinfernse-worker']
+        worker_logs = subprocess.run(worker_logs_cmd, capture_output=True, text=True)
+        if worker_logs.returncode == 0:
+            print("\n🪵 Хвост логов worker (120 строк):")
+            print(worker_logs.stdout[-1000:])
         
     except Exception as e:
         print(f"❌ Ошибка проверки логов: {e}")
@@ -162,7 +169,23 @@ def final_test():
     # Redis
     print("\n🔑 Redis кэш:")
     try:
-        redis_cmd = ['docker', 'exec', 'gptinfernse-redis', 'redis-cli', 'keys', '*conv*']
+        # Ищем ключи по нескольким паттернам
+        redis_cmds = [
+            ['docker', 'exec', 'gptinfernse-redis', 'redis-cli', 'keys', 'conversation:*'],
+            ['docker', 'exec', 'gptinfernse-redis', 'redis-cli', 'keys', '*conv*'],
+            ['docker', 'exec', 'gptinfernse-redis', 'redis-cli', 'keys', '*memory*'],
+        ]
+        total_keys = []
+        for cmd in redis_cmds:
+            redis_result = subprocess.run(cmd, capture_output=True, text=True)
+            if redis_result.returncode == 0 and redis_result.stdout.strip():
+                keys = [k for k in redis_result.stdout.strip().split('\n') if k.strip()]
+                total_keys.extend(keys)
+                print(f"✅ Найдены ключи по паттерну '{cmd[-1]}': {len(keys)}")
+                for key in keys[:10]:
+                    print(f"  - {key}")
+        if not total_keys:
+            print("⚠️  Ключи диалогов не найдены (patterns: conversation:*, *conv*, *memory*)")
         redis_result = subprocess.run(redis_cmd, capture_output=True, text=True)
         
         if redis_result.returncode == 0:

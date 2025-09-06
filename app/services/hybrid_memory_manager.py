@@ -55,7 +55,9 @@ class HybridMemoryManager:
             )
             # Initialize Redis tracer
             self.redis_tracer = trace_redis_operations(self.redis)
-            logger.info("🔴 Redis connection and tracer initialized")
+            logger.info(
+                f"🔴 Redis connection and tracer initialized (url={self.settings.redis_url})"
+            )
         return self.redis
     
     async def close(self):
@@ -119,6 +121,16 @@ class HybridMemoryManager:
                             cache_key, 
                             description=f"Invalidate cache after saving message"
                         )
+                        # Re-cache fresh conversation state for faster subsequent reads
+                        try:
+                            refreshed = await self.get_conversation_memory(conversation_id)
+                            if refreshed:
+                                logger.info(
+                                    f"🧩 Conversation cache refreshed: {conversation_id} "
+                                    f"(messages={len(refreshed.messages)})"
+                                )
+                        except Exception as recache_err:
+                            logger.warning(f"Failed to refresh conversation cache: {recache_err}")
                     
                         # Update user facts if it's a user message
                         if message.role == "user" and user_id:
@@ -146,6 +158,9 @@ class HybridMemoryManager:
         try:
             await self._get_redis()  # Initialize tracer
             cache_key = f"conversation:{conversation_id}"
+            logger.info(
+                f"🧠 Fetching conversation memory (id={conversation_id}, limit={limit})"
+            )
             
             # Try Redis cache first
             cached_data = await self.redis_tracer.trace_get(
@@ -166,6 +181,9 @@ class HybridMemoryManager:
                 except Exception as e:
                     logger.warning(f"Failed to parse cached conversation: {e}")
             
+            logger.info(
+                f"🗄️ Cache miss for {cache_key}. Falling back to PostgreSQL"
+            )
             # Fallback to PostgreSQL
             db = await get_database_manager()
             conversation_data = await db.get_conversation(
@@ -175,6 +193,7 @@ class HybridMemoryManager:
             )
             
             if not conversation_data:
+                logger.info(f"No conversation found in DB for id={conversation_id}")
                 return None
             
             # Convert to ConversationMemory model
@@ -205,6 +224,9 @@ class HybridMemoryManager:
                 total_tokens=conversation_data['total_tokens'] or 0,
                 message_count=conversation_data['message_count'] or 0
             )
+            logger.info(
+                f"📦 Loaded from DB: messages={len(messages)}, total_tokens={conversation.total_tokens}"
+            )
             
             # Cache in Redis for future requests
             try:
@@ -213,6 +235,11 @@ class HybridMemoryManager:
                     conversation.json(),
                     ttl=self.CONVERSATION_CACHE_TTL,
                     description=f"Cache conversation from database"
+                )
+                # Debug: list keys for visibility
+                await self.redis_tracer.trace_keys(
+                    pattern="conversation:*",
+                    description="Post-cache debug keys"
                 )
             except Exception as e:
                 logger.warning(f"Failed to cache conversation: {e}")

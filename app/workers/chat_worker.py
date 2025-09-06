@@ -415,10 +415,30 @@ async def _build_context_prompt(
     """Build context-aware prompt with conversation history and user preferences."""
     
     try:
+        # Debug: show redis keys before fetching
+        try:
+            if hasattr(memory_manager, "_get_redis"):
+                await memory_manager._get_redis()
+            if hasattr(memory_manager, "redis_tracer") and memory_manager.redis_tracer:
+                await memory_manager.redis_tracer.trace_keys(
+                    pattern="conversation:*",
+                    description="Pre-fetch conversation keys"
+                )
+        except Exception:
+            pass
         # Get conversation history
         conversation = await memory_manager.get_conversation_memory(
             conversation_id, limit=10  # Last 10 messages for context
         )
+        # Debug: show redis keys after fetching
+        try:
+            if hasattr(memory_manager, "redis_tracer") and memory_manager.redis_tracer:
+                await memory_manager.redis_tracer.trace_keys(
+                    pattern="conversation:*",
+                    description="Post-fetch conversation keys"
+                )
+        except Exception:
+            pass
         
         # Get user preferences and context
         user_memory = await memory_manager.get_user_memory(user_id) if user_id else None
@@ -507,12 +527,13 @@ async def _save_conversation_messages(
             model=None
         )
         
-        await memory_manager.save_conversation_message(
+        saved_user = await memory_manager.save_conversation_message(
             conversation_id=conversation_id,
             message=user_message,
             user_id=user_id,
             ttl_hours=24 * 7  # Keep for 7 days
         )
+        logger.info(f"Saved user message: {saved_user}")
         
         # Save assistant response
         assistant_message = ConversationMessage(
@@ -523,12 +544,13 @@ async def _save_conversation_messages(
             model=model
         )
         
-        await memory_manager.save_conversation_message(
+        saved_assistant = await memory_manager.save_conversation_message(
             conversation_id=conversation_id,
             message=assistant_message,
             user_id=user_id,
             ttl_hours=24 * 7  # Keep for 7 days
         )
+        logger.info(f"Saved assistant message: {saved_assistant}")
         
         # Update user facts based on conversation
         if user_id:
