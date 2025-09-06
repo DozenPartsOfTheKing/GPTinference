@@ -139,62 +139,55 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                     task_request.user_id,
                     task_request.model
                 )
-        
-        # Prepare Ollama request with enhanced prompt
-        ollama_options = OllamaGenerateOptions(
-            temperature=task_request.chat_request.temperature,
-            top_p=task_request.chat_request.top_p,
-            num_predict=task_request.chat_request.max_tokens,
-        )
-        
-        ollama_request = OllamaRequest(
-            model=task_request.chat_request.model,
-            prompt=enhanced_prompt,
-            stream=False,
-            options=ollama_options,
-        )
-        
-        # Generate response
-        logger.info(f"Sending enhanced request to Ollama for task {task_request.task_id}")
-        logger.debug(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
-        ollama_response = await ollama_manager.generate(ollama_request)
-        
-        processing_time = time.time() - start_time
-        chat_response = ChatResponse(
-            response=ollama_response.response,
-            conversation_id=conversation_id,
-            model=ollama_response.model,
-            processing_time=processing_time,
-            tokens_used=ollama_response.eval_count,
-        )
-        
-        # Save to memory
-        try:
-            await _save_conversation_messages(
-                memory_manager,
-                conversation_id,
-                task_request.user_id,
-                task_request.chat_request.prompt,
-                ollama_response.response,
-                ollama_response.model,
-                ollama_response.eval_count or 0
+            
+            # Prepare Ollama request with enhanced prompt
+            ollama_options = OllamaGenerateOptions(
+                temperature=task_request.chat_request.temperature,
+                top_p=task_request.chat_request.top_p,
+                num_predict=task_request.chat_request.max_tokens,
             )
-        except Exception as e:
-            logger.warning(f"Failed to save conversation to memory: {e}")
-            # Don't fail the task if memory save fails
-        
-        logger.info(
-            f"Chat task {task_request.task_id} completed successfully",
-            extra={
-                "task_id": task_request.task_id,
-                "processing_time": processing_time,
-                "tokens_used": ollama_response.eval_count,
-                "response_length": len(ollama_response.response),
-                "conversation_id": conversation_id,
-            }
-        )
-        
-        return chat_response.dict()
+            
+            ollama_request = OllamaRequest(
+                model=task_request.chat_request.model,
+                prompt=enhanced_prompt,
+                stream=False,
+                options=ollama_options,
+            )
+            
+            # Generate response
+            chat_logger.info(f"🤖 Sending request to Ollama...")
+            chat_logger.debug(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
+            ollama_response = await ollama_manager.generate(ollama_request)
+            
+            processing_time = time.time() - start_time
+            chat_response = ChatResponse(
+                response=ollama_response.response,
+                conversation_id=conversation_id,
+                model=ollama_response.model,
+                processing_time=processing_time,
+                tokens_used=ollama_response.eval_count,
+            )
+            
+            # Save to memory
+            try:
+                await _save_conversation_messages(
+                    memory_manager,
+                    conversation_id,
+                    task_request.user_id,
+                    task_request.prompt,
+                    ollama_response.response,
+                    ollama_response.model,
+                    ollama_response.eval_count or 0
+                )
+            except Exception as e:
+                chat_logger.warning(f"Failed to save conversation to memory: {e}")
+                # Don't fail the task if memory save fails
+            
+            chat_logger.success(
+                f"✅ Chat task completed successfully in {processing_time:.2f}s, tokens: {ollama_response.eval_count}"
+            )
+            
+            return chat_response.dict()
         
     except Exception as e:
         logger.error(f"Error in async chat processing: {e}", exc_info=True)
