@@ -23,6 +23,15 @@ async def get_current_user(
     Enhanced user identification with session tracking.
     """
     
+    # Prefer explicit user identifier header if provided
+    explicit_user_id = request.headers.get("X-User-ID") or request.headers.get("X-User-Id")
+    if explicit_user_id:
+        # Basic normalization: strip spaces and limit length
+        user_id = explicit_user_id.strip()[:128]
+        if user_id:
+            logger.debug(f"Explicit user from header: {user_id}")
+            return user_id
+
     # Get client info for better identification
     client_info = await get_client_info(request)
     client_ip = client_info["ip"]
