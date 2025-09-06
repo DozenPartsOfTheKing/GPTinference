@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
         await rate_limiter.close()
         
         # Close memory manager
-        await close_memory_manager()
+        await close_hybrid_memory_manager()
         
         logger.info("Application shutdown completed")
         
