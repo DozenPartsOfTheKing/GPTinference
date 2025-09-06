@@ -32,7 +32,7 @@ async def add_conversation_message(
     conversation_id: str,
     message: ConversationMessage,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
     ttl_hours: Optional[int] = None,
 ) -> MemoryResponse:
     """Add a message to conversation memory."""
@@ -74,7 +74,7 @@ async def add_conversation_message(
 async def get_conversation_memory(
     conversation_id: str,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
     limit: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Get conversation memory."""
@@ -119,7 +119,7 @@ async def get_conversation_memory(
 async def delete_conversation_memory(
     conversation_id: str,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryResponse:
     """Delete conversation memory."""
     
@@ -161,7 +161,7 @@ async def delete_conversation_memory(
 async def get_user_memory(
     target_user_id: str,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> Dict[str, Any]:
     """Get user memory."""
     
@@ -196,7 +196,7 @@ async def update_user_preferences(
     target_user_id: str,
     preferences: Dict[str, Any],
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryResponse:
     """Update user preferences."""
     
@@ -240,7 +240,7 @@ async def add_user_fact(
     target_user_id: str,
     fact: str,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryResponse:
     """Add a fact about the user."""
     
@@ -283,7 +283,7 @@ async def add_user_fact(
 async def create_system_memory(
     request: MemoryCreateRequest,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryResponse:
     """Create system memory (admin only)."""
     
@@ -329,7 +329,7 @@ async def create_system_memory(
 async def get_system_memory(
     key: str,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> Dict[str, Any]:
     """Get system memory."""
     
@@ -362,7 +362,7 @@ async def update_system_memory(
     key: str,
     request: MemoryUpdateRequest,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryResponse:
     """Update system memory (admin only)."""
     
@@ -420,7 +420,7 @@ async def update_system_memory(
 async def delete_system_memory(
     key: str,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryResponse:
     """Delete system memory (admin only)."""
     
@@ -454,7 +454,7 @@ async def delete_system_memory(
 async def query_memories(
     query: MemoryQuery,
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> Dict[str, Any]:
     """Query memories with filters."""
     
@@ -490,7 +490,7 @@ async def query_memories(
 @router.get("/stats", response_model=MemoryStats)
 async def get_memory_stats(
     user_id: str = Depends(check_user_rate_limit),
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> MemoryStats:
     """Get memory statistics (admin only)."""
     
@@ -510,7 +510,7 @@ async def get_memory_stats(
 
 @router.get("/health")
 async def memory_health_check(
-    memory_manager: MemoryManager = Depends(get_hybrid_memory_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> Dict[str, Any]:
     """Memory service health check."""
     

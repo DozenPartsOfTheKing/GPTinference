@@ -42,12 +42,7 @@ CREATE TABLE messages (
     tokens INTEGER,
     model VARCHAR(100),
     metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Индекс для быстрого поиска по диалогу
-    INDEX idx_messages_conversation (conversation_id, created_at),
-    INDEX idx_messages_role (role),
-    INDEX idx_messages_created (created_at)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Системная память (факты, настройки, статистика)
@@ -101,6 +96,10 @@ CREATE INDEX idx_users_active ON users(last_active) WHERE is_active = TRUE;
 CREATE INDEX idx_conversations_user ON conversations(user_id, created_at);
 CREATE INDEX idx_conversations_active ON conversations(updated_at) WHERE is_active = TRUE;
 CREATE INDEX idx_conversations_expires ON conversations(expires_at) WHERE expires_at IS NOT NULL;
+
+CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
+CREATE INDEX idx_messages_role ON messages(role);
+CREATE INDEX idx_messages_created ON messages(created_at);
 
 CREATE INDEX idx_system_memory_type ON system_memory(memory_type);
 CREATE INDEX idx_system_memory_expires ON system_memory(expires_at) WHERE expires_at IS NOT NULL;
