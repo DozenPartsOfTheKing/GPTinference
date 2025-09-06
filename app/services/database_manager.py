@@ -33,11 +33,21 @@ class DatabaseManager:
                     f"postgres:5432/gptinfernse"
                 )
             
+            async def _init_connection(conn: asyncpg.Connection):
+                # Ensure JSON/JSONB are decoded to Python objects
+                await conn.set_type_codec(
+                    'json', encoder=json.dumps, decoder=json.loads, schema='pg_catalog'
+                )
+                await conn.set_type_codec(
+                    'jsonb', encoder=json.dumps, decoder=json.loads, schema='pg_catalog'
+                )
+
             self.pool = await asyncpg.create_pool(
                 database_url,
                 min_size=2,
                 max_size=10,
-                command_timeout=60
+                command_timeout=60,
+                init=_init_connection,
             )
             logger.info("Database connection pool initialized")
             
@@ -96,7 +106,7 @@ class DatabaseManager:
                 user_id,
                 user_identifier,
                 display_name,
-                json.dumps(preferences or {}),
+                preferences or {},
                 []
             )
             
@@ -119,11 +129,11 @@ class DatabaseManager:
             result = await conn.execute(
                 """
                 UPDATE users 
-                SET preferences = preferences || $2, updated_at = NOW()
+                SET preferences = COALESCE(preferences, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
                 WHERE user_identifier = $1 AND is_active = TRUE
                 """,
                 user_identifier,
-                json.dumps(preferences)
+                preferences
             )
             return result != "UPDATE 0"
     
@@ -263,7 +273,7 @@ class DatabaseManager:
                 content,
                 tokens,
                 model,
-                json.dumps(metadata or {})
+                metadata or {}
             )
             
             # Update conversation stats

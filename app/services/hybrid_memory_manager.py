@@ -200,6 +200,13 @@ class HybridMemoryManager:
             messages = []
             if 'messages' in conversation_data:
                 for msg_data in conversation_data['messages']:
+                    # Ensure metadata is a dict
+                    raw_metadata = msg_data['metadata']
+                    if isinstance(raw_metadata, str):
+                        try:
+                            raw_metadata = json.loads(raw_metadata)
+                        except Exception:
+                            raw_metadata = {}
                     message = ConversationMessage(
                         id=msg_data['message_id'],
                         role=msg_data['role'],
@@ -207,7 +214,7 @@ class HybridMemoryManager:
                         timestamp=msg_data['created_at'],
                         tokens=msg_data['tokens'],
                         model=msg_data['model'],
-                        metadata=msg_data['metadata']
+                        metadata=raw_metadata
                     )
                     messages.append(message)
             
@@ -311,8 +318,11 @@ class HybridMemoryManager:
             
             user_memory = UserMemory(
                 user_id=user_id,
-                preferences=user_data['preferences'] or {},
-                facts=user_data['facts'] or [],
+                preferences=(
+                    json.loads(user_data['preferences']) if isinstance(user_data['preferences'], str)
+                    else (user_data['preferences'] or {})
+                ),
+                facts=(user_data['facts'] or []),
                 conversation_history=conversation_history,
                 created_at=user_data['created_at'],
                 updated_at=user_data['updated_at'],

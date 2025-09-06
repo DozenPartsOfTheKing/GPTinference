@@ -186,17 +186,6 @@ def final_test():
                     print(f"  - {key}")
         if not total_keys:
             print("⚠️  Ключи диалогов не найдены (patterns: conversation:*, *conv*, *memory*)")
-        redis_result = subprocess.run(redis_cmd, capture_output=True, text=True)
-        
-        if redis_result.returncode == 0:
-            keys = redis_result.stdout.strip().split('\n') if redis_result.stdout.strip() else []
-            if keys and keys[0]:
-                print(f"✅ Найдены ключи диалогов: {len(keys)}")
-                for key in keys:
-                    if key.strip():
-                        print(f"  - {key}")
-            else:
-                print("⚠️  Ключи диалогов не найдены")
         
     except Exception as e:
         print(f"❌ Ошибка проверки Redis: {e}")
