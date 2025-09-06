@@ -112,12 +112,12 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
     try:
         with ChatLogContext(
             "Process Chat Request", 
-            conversation_id=task_request.conversation_id,
+            conversation_id=task_request.chat_request.conversation_id,
             user_id=task_request.user_id,
-            model=task_request.model
+            model=task_request.chat_request.model
         ) as chat_logger:
             
-            chat_logger.info(f"🎯 Processing chat request: {task_request.prompt[:100]}...")
+            chat_logger.info(f"🎯 Processing chat request: {task_request.chat_request.prompt[:100]}...")
             
             ollama_manager = get_ollama_manager()
             memory_manager = get_hybrid_memory_manager()
@@ -128,17 +128,17 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                 await ollama_manager._get_session()
             
                 # Get or create conversation ID
-                conversation_id = task_request.conversation_id or str(uuid.uuid4())
+                conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
                 chat_logger.info(f"📝 Using conversation ID: {conversation_id}")
                 
                 # Build context-aware prompt
                 with MemoryLogContext("Build Context Prompt", conversation_id=conversation_id, user_id=task_request.user_id):
                     enhanced_prompt = await _build_context_prompt(
                         memory_manager, 
-                        task_request.prompt,
+                        task_request.chat_request.prompt,
                         conversation_id,
                         task_request.user_id,
-                        task_request.model
+                        task_request.chat_request.model
                     )
                 
                 # Prepare Ollama request with enhanced prompt
@@ -175,7 +175,7 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                         memory_manager,
                         conversation_id,
                         task_request.user_id,
-                        task_request.prompt,
+                        task_request.chat_request.prompt,
                         ollama_response.response,
                         ollama_response.model,
                         ollama_response.eval_count or 0
