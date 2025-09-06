@@ -560,10 +560,20 @@ body {
 .log-entry {
     margin-bottom: 0.5rem;
     padding: 0.25rem 0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
 }
 
 .log-timestamp {
     color: #64748b;
+    font-weight: 500;
+}
+
+.log-container {
+    color: var(--info-color);
+    font-weight: 600;
+    margin: 0 0.5rem;
 }
 
 .log-level {
@@ -585,6 +595,7 @@ body {
 
 .log-message {
     color: #e2e8f0;
+    word-break: break-word;
 }
 
 /* Modal */

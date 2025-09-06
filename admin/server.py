@@ -166,6 +166,14 @@ class AdminHandler(SimpleHTTPRequestHandler):
             elif endpoint == 'import-data':
                 self.handle_import_data()
             
+            # Реальные логи
+            elif endpoint == 'logs':
+                self.handle_logs()
+            
+            # Создание тестовых данных
+            elif endpoint == 'create-test-data':
+                self.handle_create_test_data()
+            
             else:
                 self.send_error(404, f"Unknown admin endpoint: {endpoint}")
                 
@@ -290,6 +298,148 @@ class AdminHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_json_response({"error": str(e)})
     
+    def handle_logs(self):
+        """Получение реальных логов системы"""
+        try:
+            import subprocess
+            import os
+            
+            # Попытка получить логи Docker контейнеров
+            logs = []
+            
+            containers = ['gptinfernse-api', 'gptinfernse-worker', 'gptinfernse-admin']
+            
+            for container in containers:
+                try:
+                    # Получаем последние 50 строк логов
+                    result = subprocess.run(
+                        ['docker', 'logs', '--tail', '50', container],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    
+                    if result.returncode == 0:
+                        lines = result.stdout.split('\n')
+                        for line in lines[-20:]:  # Последние 20 строк
+                            if line.strip():
+                                logs.append({
+                                    'container': container,
+                                    'message': line.strip(),
+                                    'timestamp': 'recent'
+                                })
+                except subprocess.TimeoutExpired:
+                    logs.append({
+                        'container': container,
+                        'message': f'Timeout getting logs for {container}',
+                        'timestamp': 'error'
+                    })
+                except Exception as e:
+                    logs.append({
+                        'container': container,
+                        'message': f'Error getting logs: {str(e)}',
+                        'timestamp': 'error'
+                    })
+            
+            # Если нет Docker логов, добавляем системные логи
+            if not logs:
+                logs = [
+                    {'container': 'system', 'message': 'Docker logs not available', 'timestamp': 'info'},
+                    {'container': 'system', 'message': 'Admin panel running normally', 'timestamp': 'info'},
+                ]
+            
+            self.send_json_response({'logs': logs})
+            
+        except Exception as e:
+            self.send_json_response({
+                'logs': [
+                    {'container': 'error', 'message': f'Failed to get logs: {str(e)}', 'timestamp': 'error'}
+                ]
+            })
+    
+    def handle_create_test_data(self):
+        """Создание тестовых данных для демонстрации"""
+        try:
+            # Создаем тестовые данные через API
+            test_data_created = []
+            
+            # Создаем тестового пользователя
+            test_user_data = {
+                "memory_type": "user_context",
+                "data": {
+                    "user_id": "test_user_123",
+                    "preferences": {"language": "ru", "model": "llama3.2"},
+                    "facts": ["Интересуется программированием", "Использует Python"],
+                    "conversation_history": ["conv_test_1", "conv_test_2"]
+                },
+                "tags": ["test", "demo"]
+            }
+            
+            # Создаем тестовый диалог
+            test_conversation = {
+                "memory_type": "conversation",
+                "data": {
+                    "conversation_id": "conv_test_1",
+                    "user_id": "test_user_123",
+                    "messages": [
+                        {
+                            "id": "msg_1",
+                            "role": "user",
+                            "content": "Привет! Как дела?",
+                            "timestamp": "2024-01-01T12:00:00Z"
+                        },
+                        {
+                            "id": "msg_2", 
+                            "role": "assistant",
+                            "content": "Привет! Дела отлично, спасибо! Как у тебя дела?",
+                            "timestamp": "2024-01-01T12:00:05Z"
+                        }
+                    ],
+                    "topics": ["greeting", "casual"],
+                    "total_tokens": 50,
+                    "message_count": 2
+                },
+                "ttl_hours": 168  # 7 дней
+            }
+            
+            # Отправляем данные через API
+            try:
+                response = requests.post(
+                    "http://localhost:8000/memory/system",
+                    json=test_conversation,
+                    timeout=10
+                )
+                if response.status_code in [200, 201]:
+                    test_data_created.append("Тестовый диалог создан")
+            except:
+                pass
+            
+            try:
+                response = requests.post(
+                    "http://localhost:8000/memory/system", 
+                    json=test_user_data,
+                    timeout=10
+                )
+                if response.status_code in [200, 201]:
+                    test_data_created.append("Тестовый пользователь создан")
+            except:
+                pass
+            
+            if not test_data_created:
+                test_data_created = ["API недоступен, тестовые данные не созданы"]
+            
+            self.send_json_response({
+                "success": True,
+                "message": "Тестовые данные созданы",
+                "created": test_data_created
+            })
+            
+        except Exception as e:
+            self.send_json_response({
+                "success": False,
+                "message": f"Ошибка создания тестовых данных: {str(e)}"
+            })
+
     def send_json_response(self, data):
         """Отправка JSON ответа"""
         json_data = json.dumps(data, ensure_ascii=False, indent=2)

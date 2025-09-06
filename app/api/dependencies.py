@@ -20,29 +20,45 @@ async def get_current_user(
 ) -> Optional[str]:
     """
     Get current user from JWT token or return anonymous user.
-    For now, returns a simple user ID based on IP or token.
+    Enhanced user identification with session tracking.
     """
     
-    # If no credentials provided, use IP-based identification
-    if not credentials:
-        client_ip = request.client.host
-        return f"anonymous_{client_ip}"
+    # Get client info for better identification
+    client_info = await get_client_info(request)
+    client_ip = client_info["ip"]
+    user_agent = client_info["user_agent"]
     
-    # TODO: Implement proper JWT validation here
-    # For now, just extract user ID from token
-    try:
-        # This is a placeholder - implement proper JWT decoding
-        token = credentials.credentials
-        if token.startswith("user_"):
-            return token
-        else:
-            # Fallback to IP-based ID
-            client_ip = request.client.host
-            return f"token_{client_ip}"
-    except Exception as e:
-        logger.warning(f"Invalid token: {e}")
-        client_ip = request.client.host
-        return f"invalid_{client_ip}"
+    # If credentials provided, try to extract user ID
+    if credentials:
+        try:
+            token = credentials.credentials
+            
+            # Check for simple user ID format
+            if token.startswith("user_"):
+                logger.debug(f"Authenticated user: {token}")
+                return token
+            
+            # Check for session token format
+            if token.startswith("session_"):
+                logger.debug(f"Session user: {token}")
+                return token
+            
+            # TODO: Implement proper JWT validation here
+            # For now, treat as session token
+            session_id = f"session_{hash(token) % 100000}"
+            logger.debug(f"Token-based session: {session_id}")
+            return session_id
+            
+        except Exception as e:
+            logger.warning(f"Invalid token: {e}")
+    
+    # Generate consistent anonymous user ID based on IP and User-Agent
+    # This helps maintain session continuity for the same browser/IP
+    user_fingerprint = f"{client_ip}_{hash(user_agent) % 10000}"
+    anonymous_id = f"anon_{user_fingerprint}"
+    
+    logger.debug(f"Anonymous user: {anonymous_id} (IP: {client_ip})")
+    return anonymous_id
 
 
 async def get_rate_limiter_dep() -> RateLimiter:

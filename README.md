@@ -36,6 +36,8 @@ docker compose up -d
 
 - 🔄 **Асинхронная обработка** - FastAPI + Celery для высокой производительности
 - 🎯 **Масштабируемость** - Поддержка множественных воркеров и моделей
+- 🧠 **Система памяти** - Умное сохранение диалогов и контекста пользователей
+- 🔧 **Админка** - Веб-интерфейс для управления системой на порту 3002
 - 🛡️ **Rate Limiting** - Защита от перегрузки с Redis-based лимитами
 - 📊 **Мониторинг** - Prometheus + Grafana + Flower для полного контроля
 - 🐳 **Docker** - Полная контейнеризация для легкого развертывания
@@ -46,14 +48,23 @@ docker compose up -d
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌────────────────────┐
-│   Клиенты       │    │   Nginx Proxy    │    │    API Gateway     │
-│ (Web/CLI/SDK)   │ ─> │   (Rate Limit)   │ ─> │    (FastAPI)       │
+│   Клиенты       │    │   Frontend       │    │    Admin Panel     │
+│ (Web/CLI/SDK)   │ ─> │   :3000          │    │    :3002           │
 │                 │    │                  │    │                    │
 └─────────────────┘    └──────────────────┘    └────────────────────┘
-                                                         │
-                                                         ▼
+                                │                         │
+                                ▼                         ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    API Gateway (FastAPI :8000)                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │    /chat    │  │   /models   │  │   /memory   │  │   /health   │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     Task Queue (Redis)                              │
+│                   + Memory Storage                                  │
 └─────────────────────────────────────────────────────────────────────┘
                          │
                          ▼
@@ -61,12 +72,13 @@ docker compose up -d
 │                     Worker Pool (Celery)                            │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
 │  │   Worker 1  │  │   Worker 2  │  │   Worker 3  │  │   Worker N  │ │
+│  │  + Memory   │  │  + Memory   │  │  + Memory   │  │  + Memory   │ │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                 Ollama Service                                      │
+│                 Ollama Service (:11434)                            │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │
 │  │   LLaMA 3   │  │   Mistral   │  │  CodeLLaMA  │  ...             │
 │  └─────────────┘  └─────────────┘  └─────────────┘                  │
@@ -204,6 +216,20 @@ GET /chat/history/{conv_id}   # История разговора
 GET /chat/stats               # Статистика пользователя
 ```
 
+#### Память
+```http
+POST /memory/conversation/{conv_id}/message  # Добавить сообщение в диалог
+GET /memory/conversation/{conv_id}           # Получить историю диалога
+DELETE /memory/conversation/{conv_id}        # Удалить диалог
+GET /memory/user/{user_id}                   # Получить данные пользователя
+PUT /memory/user/{user_id}/preferences       # Обновить предпочтения
+POST /memory/user/{user_id}/fact            # Добавить факт о пользователе
+POST /memory/system                          # Создать системную память
+GET /memory/system/{key}                     # Получить системную память
+POST /memory/query                           # Поиск в памяти
+GET /memory/stats                            # Статистика памяти
+```
+
 ### Примеры запросов
 
 #### Синхронный чат
@@ -228,6 +254,24 @@ TASK_ID=$(curl -X POST http://localhost:8000/chat/ \
 
 # Проверка статуса
 curl http://localhost:8000/chat/task/$TASK_ID
+```
+
+#### Работа с памятью
+```bash
+# Получение истории диалога
+curl http://localhost:8000/memory/conversation/conv_123456
+
+# Поиск диалогов пользователя
+curl -X POST http://localhost:8000/memory/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "memory_type": "conversation",
+    "user_id": "user_789",
+    "limit": 10
+  }'
+
+# Статистика памяти
+curl http://localhost:8000/memory/stats
 ```
 
 ## 🖥️ Использование CLI клиента
@@ -256,10 +300,12 @@ python client_example.py chat "Объясни Docker" --sync --model mistral
 
 ### Веб-интерфейсы
 
-- **API Docs**: http://localhost:8000/docs
-- **Flower (Celery)**: http://localhost:5555 (admin/admin123)
-- **Grafana**: http://localhost:3000 (admin/admin123)
-- **Prometheus**: http://localhost:9090
+- **Frontend**: http://localhost:3000 - Основной чат-интерфейс
+- **Admin Panel**: http://localhost:3002 - Админка для управления системой
+- **API Docs**: http://localhost:8000/docs - Документация API
+- **Flower (Celery)**: http://localhost:5555 (admin/admin123) - Мониторинг задач
+- **Grafana**: http://localhost:3000 (admin/admin123) - Дашборды
+- **Prometheus**: http://localhost:9090 - Метрики
 
 ### Метрики
 
@@ -319,23 +365,41 @@ GPTInfernse/
 ├── app/                    # Основное приложение
 │   ├── api/               # API слой
 │   │   ├── routes/        # Маршруты API
+│   │   │   ├── chat.py    # Чат endpoints
+│   │   │   ├── memory.py  # Память endpoints
+│   │   │   ├── models.py  # Модели endpoints
+│   │   │   └── health.py  # Здоровье endpoints
 │   │   └── dependencies.py # Зависимости FastAPI
 │   ├── core/              # Ядро приложения
 │   │   └── config.py      # Конфигурация
 │   ├── models/            # Модели данных
+│   │   ├── chat.py        # Чат модели
+│   │   ├── memory.py      # Память модели
+│   │   └── ollama.py      # Ollama модели
 │   ├── services/          # Бизнес-логика
+│   │   ├── ollama_manager.py    # Управление Ollama
+│   │   ├── memory_manager.py    # Управление памятью
+│   │   └── rate_limiter.py      # Rate limiting
 │   ├── utils/             # Утилиты
 │   ├── workers/           # Celery воркеры
 │   └── main.py           # Точка входа
+├── admin/                # Админка
+│   ├── server.py         # HTTP сервер админки
+│   ├── index.html        # Веб-интерфейс
+│   ├── styles.css        # Стили
+│   ├── app.js           # JavaScript
+│   └── Dockerfile.admin  # Docker образ
+├── frontend/             # Фронтенд
 ├── docker/               # Docker конфигурации
 ├── scripts/              # Скрипты управления
 ├── tests/                # Тесты
 ├── docker-compose.yml    # Оркестрация
 ├── Dockerfile           # Образ приложения
+├── start-admin.sh       # Запуск админки
 └── requirements.txt     # Зависимости Python
 ```
 
-### Добавление новых функций
+### Доtopбавление новых функций
 
 1. **Новый эндпоинт**:
    ```python

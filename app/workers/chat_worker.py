@@ -103,16 +103,29 @@ def process_chat_task(
 
 
 async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
-    """Async chat processing logic."""
+    """Async chat processing logic with memory integration."""
     
     start_time = time.time()
     ollama_manager = get_ollama_manager()
+    memory_manager = get_memory_manager()
     
     try:
-        # Initialize Ollama session
+        # Initialize services
         await ollama_manager._get_session()
         
-        # Prepare Ollama request
+        # Get or create conversation ID
+        conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
+        
+        # Build context-aware prompt
+        enhanced_prompt = await _build_context_prompt(
+            memory_manager, 
+            task_request.chat_request.prompt,
+            conversation_id,
+            task_request.user_id,
+            task_request.chat_request.model
+        )
+        
+        # Prepare Ollama request with enhanced prompt
         ollama_options = OllamaGenerateOptions(
             temperature=task_request.chat_request.temperature,
             top_p=task_request.chat_request.top_p,
@@ -121,19 +134,17 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
         
         ollama_request = OllamaRequest(
             model=task_request.chat_request.model,
-            prompt=task_request.chat_request.prompt,
+            prompt=enhanced_prompt,
             stream=False,
             options=ollama_options,
         )
         
         # Generate response
-        logger.info(f"Sending request to Ollama for task {task_request.task_id}")
+        logger.info(f"Sending enhanced request to Ollama for task {task_request.task_id}")
+        logger.debug(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
         ollama_response = await ollama_manager.generate(ollama_request)
         
         processing_time = time.time() - start_time
-        
-        # Create response
-        conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
         chat_response = ChatResponse(
             response=ollama_response.response,
             conversation_id=conversation_id,
@@ -144,42 +155,15 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
         
         # Save to memory
         try:
-            memory_manager = get_memory_manager()
-            
-            # Save user message
-            user_message = ConversationMessage(
-                id=str(uuid.uuid4()),
-                role="user",
-                content=task_request.chat_request.prompt,
-                tokens=len(task_request.chat_request.prompt.split()),  # Approximate token count
-                model=None
+            await _save_conversation_messages(
+                memory_manager,
+                conversation_id,
+                task_request.user_id,
+                task_request.chat_request.prompt,
+                ollama_response.response,
+                ollama_response.model,
+                ollama_response.eval_count or 0
             )
-            
-            await memory_manager.save_conversation_message(
-                conversation_id=conversation_id,
-                message=user_message,
-                user_id=task_request.user_id,
-                ttl_hours=24 * 7  # Keep for 7 days
-            )
-            
-            # Save assistant response
-            assistant_message = ConversationMessage(
-                id=str(uuid.uuid4()),
-                role="assistant",
-                content=ollama_response.response,
-                tokens=ollama_response.eval_count,
-                model=ollama_response.model
-            )
-            
-            await memory_manager.save_conversation_message(
-                conversation_id=conversation_id,
-                message=assistant_message,
-                user_id=task_request.user_id,
-                ttl_hours=24 * 7  # Keep for 7 days
-            )
-            
-            logger.info(f"Saved conversation messages to memory for {conversation_id}")
-            
         except Exception as e:
             logger.warning(f"Failed to save conversation to memory: {e}")
             # Don't fail the task if memory save fails
@@ -385,6 +369,184 @@ async def _send_streaming_chunk(
                     
     except Exception as e:
         logger.warning(f"Failed to send streaming chunk: {e}")
+
+
+async def _build_context_prompt(
+    memory_manager,
+    user_prompt: str,
+    conversation_id: str,
+    user_id: str,
+    model: str
+) -> str:
+    """Build context-aware prompt with conversation history and user preferences."""
+    
+    try:
+        # Get conversation history
+        conversation = await memory_manager.get_conversation_memory(
+            conversation_id, limit=10  # Last 10 messages for context
+        )
+        
+        # Get user preferences and context
+        user_memory = await memory_manager.get_user_memory(user_id) if user_id else None
+        
+        # Build system context
+        system_context = []
+        
+        # Add model identity
+        system_context.append(f"Ты - AI ассистент, работающий на модели {model}.")
+        
+        # Add user context if available
+        if user_memory:
+            if user_memory.preferences:
+                prefs = []
+                if user_memory.preferences.get('language'):
+                    prefs.append(f"язык: {user_memory.preferences['language']}")
+                if user_memory.preferences.get('temperature'):
+                    prefs.append(f"стиль ответов: {'творческий' if user_memory.preferences['temperature'] > 0.7 else 'точный'}")
+                
+                if prefs:
+                    system_context.append(f"Предпочтения пользователя: {', '.join(prefs)}.")
+            
+            if user_memory.facts:
+                facts_text = "; ".join(user_memory.facts[-3:])  # Last 3 facts
+                system_context.append(f"Известные факты о пользователе: {facts_text}.")
+        
+        # Build conversation context
+        conversation_context = []
+        if conversation and conversation.messages:
+            conversation_context.append("История диалога:")
+            
+            # Add recent messages (skip system messages)
+            recent_messages = [msg for msg in conversation.messages[-6:] if msg.role != "system"]
+            for msg in recent_messages:
+                role_name = "Пользователь" if msg.role == "user" else "Ассистент"
+                conversation_context.append(f"{role_name}: {msg.content}")
+        
+        # Combine all context
+        full_context = []
+        
+        if system_context:
+            full_context.append("КОНТЕКСТ:")
+            full_context.extend(system_context)
+            full_context.append("")
+        
+        if conversation_context:
+            full_context.extend(conversation_context)
+            full_context.append("")
+        
+        full_context.append("ТЕКУЩИЙ ВОПРОС:")
+        full_context.append(f"Пользователь: {user_prompt}")
+        full_context.append("")
+        full_context.append("Ассистент:")
+        
+        enhanced_prompt = "\n".join(full_context)
+        
+        logger.debug(f"Built context prompt with {len(system_context)} system items, "
+                    f"{len(conversation_context)} conversation items")
+        
+        return enhanced_prompt
+        
+    except Exception as e:
+        logger.warning(f"Failed to build context prompt: {e}")
+        # Fallback to simple prompt
+        return f"Пользователь: {user_prompt}\n\nАссистент:"
+
+
+async def _save_conversation_messages(
+    memory_manager,
+    conversation_id: str,
+    user_id: str,
+    user_prompt: str,
+    assistant_response: str,
+    model: str,
+    tokens_used: int
+) -> None:
+    """Save conversation messages to memory."""
+    
+    try:
+        # Save user message
+        user_message = ConversationMessage(
+            id=str(uuid.uuid4()),
+            role="user",
+            content=user_prompt,
+            tokens=len(user_prompt.split()),  # Approximate token count
+            model=None
+        )
+        
+        await memory_manager.save_conversation_message(
+            conversation_id=conversation_id,
+            message=user_message,
+            user_id=user_id,
+            ttl_hours=24 * 7  # Keep for 7 days
+        )
+        
+        # Save assistant response
+        assistant_message = ConversationMessage(
+            id=str(uuid.uuid4()),
+            role="assistant",
+            content=assistant_response,
+            tokens=tokens_used,
+            model=model
+        )
+        
+        await memory_manager.save_conversation_message(
+            conversation_id=conversation_id,
+            message=assistant_message,
+            user_id=user_id,
+            ttl_hours=24 * 7  # Keep for 7 days
+        )
+        
+        # Update user facts based on conversation
+        if user_id:
+            await _extract_and_save_user_facts(
+                memory_manager, user_id, user_prompt, assistant_response
+            )
+        
+        logger.info(f"Saved conversation messages to memory for {conversation_id}")
+        
+    except Exception as e:
+        logger.warning(f"Failed to save conversation to memory: {e}")
+
+
+async def _extract_and_save_user_facts(
+    memory_manager,
+    user_id: str,
+    user_prompt: str,
+    assistant_response: str
+) -> None:
+    """Extract and save facts about user from conversation."""
+    
+    try:
+        # Simple fact extraction based on keywords
+        facts_to_add = []
+        
+        prompt_lower = user_prompt.lower()
+        
+        # Programming languages
+        prog_langs = ['python', 'javascript', 'java', 'c++', 'go', 'rust', 'php', 'ruby']
+        for lang in prog_langs:
+            if lang in prompt_lower and f"программирует на {lang}" not in facts_to_add:
+                facts_to_add.append(f"Интересуется программированием на {lang}")
+        
+        # Interests
+        if any(word in prompt_lower for word in ['ai', 'машинное обучение', 'нейронные сети']):
+            facts_to_add.append("Интересуется искусственным интеллектом")
+        
+        if any(word in prompt_lower for word in ['docker', 'kubernetes', 'devops']):
+            facts_to_add.append("Работает с DevOps технологиями")
+        
+        # Language preference
+        if any(word in prompt_lower for word in ['на русском', 'по-русски']):
+            await memory_manager.update_user_preferences(user_id, {"language": "ru"})
+        elif any(word in prompt_lower for word in ['in english', 'на английском']):
+            await memory_manager.update_user_preferences(user_id, {"language": "en"})
+        
+        # Save extracted facts
+        for fact in facts_to_add:
+            await memory_manager.add_user_fact(user_id, fact)
+            
+    except Exception as e:
+        logger.debug(f"Failed to extract user facts: {e}")
 
 
 # Health check task

@@ -55,6 +55,10 @@ class AdminPanel {
             this.exportMemory();
         });
 
+        document.getElementById('create-test-data-btn').addEventListener('click', () => {
+            this.createTestData();
+        });
+
         // Memory tabs
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -558,26 +562,27 @@ class AdminPanel {
     }
 
     async loadLogs() {
-        // Placeholder for logs functionality
-        const logsContent = document.getElementById('logs-content');
-        logsContent.innerHTML = `
-            <div class="log-entry">
-                <span class="log-timestamp">[2024-01-01 12:00:00]</span>
-                <span class="log-level INFO">INFO</span>
-                <span class="log-message">Система запущена успешно</span>
-            </div>
-            <div class="log-entry">
-                <span class="log-timestamp">[2024-01-01 12:01:00]</span>
-                <span class="log-level INFO">INFO</span>
-                <span class="log-message">Подключение к Redis установлено</span>
-            </div>
-            <div class="log-entry">
-                <span class="log-timestamp">[2024-01-01 12:02:00]</span>
-                <span class="log-level WARNING">WARNING</span>
-                <span class="log-message">Высокое использование памяти</span>
-            </div>
-            <div class="no-data">Реальные логи будут доступны в следующей версии</div>
-        `;
+        try {
+            const response = await fetch('/admin-api/logs');
+            const data = await response.json();
+            
+            const logsContent = document.getElementById('logs-content');
+            
+            if (data.logs && data.logs.length > 0) {
+                logsContent.innerHTML = data.logs.map(log => `
+                    <div class="log-entry">
+                        <span class="log-timestamp">[${log.timestamp}]</span>
+                        <span class="log-container">[${log.container}]</span>
+                        <span class="log-message">${log.message}</span>
+                    </div>
+                `).join('');
+            } else {
+                logsContent.innerHTML = '<div class="no-data">Логи не найдены</div>';
+            }
+        } catch (error) {
+            console.error('Error loading logs:', error);
+            document.getElementById('logs-content').innerHTML = '<div class="error">Ошибка загрузки логов</div>';
+        }
     }
 
     // Action methods
@@ -644,6 +649,26 @@ class AdminPanel {
             }
         } catch (error) {
             this.showNotification('Ошибка экспорта данных', 'error');
+        }
+    }
+
+    async createTestData() {
+        try {
+            const response = await fetch(`${this.adminApiUrl}/create-test-data`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                this.showNotification('Тестовые данные созданы успешно', 'success');
+                // Обновляем данные в памяти
+                this.loadMemoryData();
+                this.loadDashboard();
+            } else {
+                this.showNotification(data.message || 'Ошибка создания тестовых данных', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Ошибка создания тестовых данных', 'error');
         }
     }
 
