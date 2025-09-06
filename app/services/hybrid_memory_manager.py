@@ -74,59 +74,64 @@ class HybridMemoryManager:
     ) -> bool:
         """Save message to conversation (PostgreSQL + Redis cache)."""
         
-        with MemoryLogContext(
-            "Save Conversation Message", 
-            conversation_id=conversation_id, 
-            user_id=user_id,
-            message_role=message.role
-        ) as mem_logger:
-            
-            mem_logger.info(f"💾 Saving {message.role} message: {message.content[:100]}...")
-            
-            try:
-                db = await get_database_manager()
+        try:
+            with MemoryLogContext(
+                "Save Conversation Message", 
+                conversation_id=conversation_id, 
+                user_id=user_id,
+                message_role=message.role
+            ) as mem_logger:
                 
-                # Ensure conversation exists in PostgreSQL
-                mem_logger.debug("🔍 Checking if conversation exists...")
-                conversation = await db.get_conversation(conversation_id, include_messages=False)
-                if not conversation:
-                    # Create conversation
-                    mem_logger.info("🆕 Creating new conversation...")
-                    await db.create_conversation(
+                mem_logger.info(f"💾 Saving {message.role} message: {message.content[:100]}...")
+                
+                try:
+                    db = await get_database_manager()
+                    
+                    # Ensure conversation exists in PostgreSQL
+                    mem_logger.debug("🔍 Checking if conversation exists...")
+                    conversation = await db.get_conversation(conversation_id, include_messages=False)
+                    if not conversation:
+                        # Create conversation
+                        mem_logger.info("🆕 Creating new conversation...")
+                        await db.create_conversation(
+                            conversation_id=conversation_id,
+                            user_identifier=user_id or "anonymous",
+                            ttl_hours=ttl_hours or 24 * 7  # 7 days default
+                        )
+                    
+                    # Save message to PostgreSQL
+                    mem_logger.debug("💾 Saving message to PostgreSQL...")
+                    success = await db.add_message(
                         conversation_id=conversation_id,
-                        user_identifier=user_id or "anonymous",
-                        ttl_hours=ttl_hours or 24 * 7  # 7 days default
+                        message_id=message.id,
+                        role=message.role,
+                        content=message.content,
+                        tokens=message.tokens,
+                        model=message.model,
+                        metadata=message.metadata
                     )
-                
-                # Save message to PostgreSQL
-                mem_logger.debug("💾 Saving message to PostgreSQL...")
-                success = await db.add_message(
-                    conversation_id=conversation_id,
-                message_id=message.id,
-                role=message.role,
-                content=message.content,
-                tokens=message.tokens,
-                model=message.model,
-                metadata=message.metadata
-            )
-            
-                if success:
-                    # Invalidate Redis cache for this conversation
-                    await self._get_redis()  # Initialize tracer
-                    cache_key = f"conversation:{conversation_id}"
-                    await self.redis_tracer.trace_delete(
-                        cache_key, 
-                        description=f"Invalidate cache after saving message"
-                    )
-                
-                # Update user facts if it's a user message
-                if message.role == "user" and user_id:
-                    await self._extract_and_save_user_facts(user_id, message.content)
-                
-                logger.info(f"Saved message to conversation {conversation_id}")
-                return True
-            
-            return False
+                    
+                    if success:
+                        # Invalidate Redis cache for this conversation
+                        await self._get_redis()  # Initialize tracer
+                        cache_key = f"conversation:{conversation_id}"
+                        await self.redis_tracer.trace_delete(
+                            cache_key, 
+                            description=f"Invalidate cache after saving message"
+                        )
+                    
+                        # Update user facts if it's a user message
+                        if message.role == "user" and user_id:
+                            await self._extract_and_save_user_facts(user_id, message.content)
+                        
+                        mem_logger.success(f"✅ Saved message to conversation {conversation_id}")
+                        return True
+                    
+                    return False
+                    
+                except Exception as e:
+                    mem_logger.error(f"❌ Error saving message: {e}")
+                    return False
             
         except Exception as e:
             logger.error(f"Error saving conversation message: {e}")
