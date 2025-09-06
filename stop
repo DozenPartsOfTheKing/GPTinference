@@ -1,4 +1,4 @@
 #!/bin/bash
-# Остановка GPTInfernse
-echo "🛑 Остановка GPTInfernse..."
-./kill_all.sh
+# Остановка GPTInfernse Docker
+echo "🛑 Остановка GPTInfernse Docker..."
+./docker-stop.sh

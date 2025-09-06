@@ -150,6 +150,14 @@ backups/
 *.db
 *.sqlite
 
+# Docker
+.env
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+.DS_Store
+
 # SSL certificates
 *.pem
 *.key

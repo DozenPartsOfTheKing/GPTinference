@@ -1,0 +1,8 @@
+#!/bin/bash
+# Просмотр логов GPTInfernse Docker
+echo "📄 Логи GPTInfernse Docker..."
+if command -v docker-compose &> /dev/null; then
+    docker-compose logs -f
+else
+    docker compose logs -f
+fi

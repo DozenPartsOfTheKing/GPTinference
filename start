@@ -1,4 +1,4 @@
 #!/bin/bash
-# Простой запуск GPTInfernse
-echo "🚀 Запуск GPTInfernse..."
-./full_restart.sh
+# Простой запуск GPTInfernse через Docker
+echo "🐳 Запуск GPTInfernse через Docker..."
+./docker-start.sh

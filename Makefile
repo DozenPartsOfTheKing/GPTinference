@@ -1,140 +1,93 @@
-# GPTInfernse Makefile
-# Удобные команды для управления проектом
+# GPTInfernse - Простое управление
+.PHONY: help start stop restart status logs logs-f build clean test
 
-.PHONY: help install start stop restart status logs build clean test format lint dev
-
-# Цвета для вывода
+# Цвета
 BLUE=\033[0;34m
 GREEN=\033[0;32m
 YELLOW=\033[1;33m
-NC=\033[0m # No Color
+NC=\033[0m
 
 help: ## Показать справку
-	@echo "$(BLUE)GPTInfernse - Команды управления$(NC)"
+	@echo "$(BLUE)🚀 GPTInfernse - Команды управления$(NC)"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
-install: ## Полная установка проекта
-	@echo "$(BLUE)Установка GPTInfernse...$(NC)"
-	@./scripts/deploy.sh install
-
 start: ## Запустить все сервисы
-	@echo "$(BLUE)Запуск сервисов...$(NC)"
-	@./scripts/deploy.sh start
+	@echo "$(BLUE)🚀 Запуск GPTInfernse...$(NC)"
+	@./docker-start.sh
 
 stop: ## Остановить все сервисы
-	@echo "$(BLUE)Остановка сервисов...$(NC)"
-	@./scripts/deploy.sh stop
+	@echo "$(BLUE)🛑 Остановка GPTInfernse...$(NC)"
+	@./docker-stop.sh
 
 restart: ## Перезапустить все сервисы
-	@echo "$(BLUE)Перезапуск сервисов...$(NC)"
-	@./scripts/deploy.sh restart
+	@echo "$(BLUE)🔄 Перезапуск GPTInfernse...$(NC)"
+	@./docker-stop.sh && ./docker-start.sh
 
 status: ## Показать статус сервисов
-	@echo "$(BLUE)Статус сервисов:$(NC)"
-	@./scripts/deploy.sh status
+	@echo "$(BLUE)📊 Статус сервисов:$(NC)"
+	@docker-compose ps
 
 logs: ## Показать логи
-	@./scripts/deploy.sh logs
+	@docker-compose logs --tail=50
 
-logs-f: ## Следить за логами
-	@./scripts/deploy.sh logs-f
+logs-f: ## Следить за логами в реальном времени
+	@docker-compose logs -f
 
-build: ## Собрать Docker образы
-	@echo "$(BLUE)Сборка образов...$(NC)"
-	@./scripts/deploy.sh build
+build: ## Пересобрать образы
+	@echo "$(BLUE)🔨 Сборка образов...$(NC)"
+	@docker-compose build --no-cache
 
-clean: ## Очистить контейнеры и образы
-	@echo "$(YELLOW)Очистка...$(NC)"
-	@./scripts/deploy.sh cleanup
+clean: ## Полная очистка (удалить все)
+	@echo "$(YELLOW)🧹 Полная очистка...$(NC)"
+	@./docker-stop.sh --clean
 
-backup: ## Создать резервную копию
-	@echo "$(BLUE)Создание резервной копии...$(NC)"
-	@./scripts/deploy.sh backup
-
-update: ## Обновить сервис
-	@echo "$(BLUE)Обновление сервиса...$(NC)"
-	@./scripts/deploy.sh update
-
-models: ## Установить рекомендуемые модели Ollama
-	@echo "$(BLUE)Установка моделей Ollama...$(NC)"
-	@./scripts/deploy.sh models
-
-# Команды разработки
-dev-setup: ## Настроить среду разработки
-	@echo "$(BLUE)Настройка среды разработки...$(NC)"
-	@./scripts/dev.sh setup
-
-dev: ## Запустить сервер разработки
-	@echo "$(BLUE)Запуск сервера разработки...$(NC)"
-	@./scripts/dev.sh dev
-
-worker: ## Запустить Celery worker
-	@echo "$(BLUE)Запуск Celery worker...$(NC)"
-	@./scripts/dev.sh worker
-
-test: ## Запустить тесты
-	@echo "$(BLUE)Запуск тестов...$(NC)"
-	@./scripts/dev.sh test
-
-format: ## Форматировать код
-	@echo "$(BLUE)Форматирование кода...$(NC)"
-	@./scripts/dev.sh format
-
-lint: ## Проверить код линтерами
-	@echo "$(BLUE)Проверка кода...$(NC)"
-	@./scripts/dev.sh lint
-
-dev-clean: ## Очистить среду разработки
-	@echo "$(YELLOW)Очистка среды разработки...$(NC)"
-	@./scripts/dev.sh clean
-
-# Команды для тестирования API
+# Быстрые тесты
 health: ## Проверить здоровье API
-	@curl -s http://localhost:8000/health/detailed | jq .
+	@curl -s http://localhost:8000/health/detailed | jq . || echo "API недоступен"
 
-api-models: ## Получить список моделей
-	@curl -s http://localhost:8000/models/ | jq .
+models: ## Показать доступные модели
+	@curl -s http://localhost:8000/models/ | jq . || echo "API недоступен"
 
 chat-test: ## Тестовый запрос к чату
 	@curl -X POST http://localhost:8000/chat/sync \
 		-H "Content-Type: application/json" \
-		-d '{"prompt": "Привет! Как дела?", "model": "llama3"}' | jq .
+		-d '{"prompt": "Привет! Как дела?", "model": "llama3"}' | jq . || echo "Чат недоступен"
 
-# Команды мониторинга
+# Мониторинг
 flower: ## Открыть Flower (мониторинг Celery)
-	@echo "$(GREEN)Открываем Flower: http://localhost:5555$(NC)"
-	@open http://localhost:5555 2>/dev/null || xdg-open http://localhost:5555 2>/dev/null || echo "Откройте http://localhost:5555 в браузере"
-
-grafana: ## Открыть Grafana
-	@echo "$(GREEN)Открываем Grafana: http://localhost:3000$(NC)"
-	@open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || echo "Откройте http://localhost:3000 в браузере"
-
-prometheus: ## Открыть Prometheus
-	@echo "$(GREEN)Открываем Prometheus: http://localhost:9090$(NC)"
-	@open http://localhost:9090 2>/dev/null || xdg-open http://localhost:9090 2>/dev/null || echo "Откройте http://localhost:9090 в браузере"
+	@echo "$(GREEN)🌸 Flower: http://localhost:5555 (admin/admin123)$(NC)"
+	@open http://localhost:5555 2>/dev/null || xdg-open http://localhost:5555 2>/dev/null || echo "Откройте http://localhost:5555"
 
 docs: ## Открыть API документацию
-	@echo "$(GREEN)Открываем API Docs: http://localhost:8000/docs$(NC)"
-	@open http://localhost:8000/docs 2>/dev/null || xdg-open http://localhost:8000/docs 2>/dev/null || echo "Откройте http://localhost:8000/docs в браузере"
+	@echo "$(GREEN)📚 API Docs: http://localhost:8000/docs$(NC)"
+	@open http://localhost:8000/docs 2>/dev/null || xdg-open http://localhost:8000/docs 2>/dev/null || echo "Откройте http://localhost:8000/docs"
 
-# Команды для production
-prod-deploy: ## Развернуть в production
-	@echo "$(BLUE)Развертывание в production...$(NC)"
-	@DEBUG=false docker-compose up -d
+web: ## Открыть веб-интерфейс
+	@echo "$(GREEN)🌐 GPTInfernse: http://localhost:3000$(NC)"
+	@open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || echo "Откройте http://localhost:3000"
 
-prod-backup: ## Создать production backup
-	@echo "$(BLUE)Создание production backup...$(NC)"
-	@./scripts/deploy.sh backup
+# Разработка
+dev: ## Запуск для разработки (без Docker)
+	@echo "$(BLUE)🛠️ Режим разработки...$(NC)"
+	@echo "Запустите в разных терминалах:"
+	@echo "  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+	@echo "  celery -A app.utils.celery_app worker --loglevel=info"
+	@echo "  cd frontend && python3 server.py"
 
-prod-restore: ## Восстановить из backup (требует указания пути)
-	@echo "$(YELLOW)Восстановление из backup...$(NC)"
-	@echo "Использование: make prod-restore BACKUP_PATH=/path/to/backup"
+test: ## Запустить тесты
+	@echo "$(BLUE)🧪 Запуск тестов...$(NC)"
+	@pytest tests/ -v
 
-# Быстрые команды
+format: ## Форматировать код
+	@echo "$(BLUE)🎨 Форматирование кода...$(NC)"
+	@black app/ tests/
+	@isort app/ tests/
+
+# Алиасы
 up: start ## Алиас для start
 down: stop ## Алиас для stop
 ps: status ## Алиас для status
 
-# Команда по умолчанию
+# По умолчанию показываем справку
 .DEFAULT_GOAL := help
