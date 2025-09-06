@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --no-cache-dir \
     requests \
     psutil \
-    redis
+    redis \
+    loguru
 
 # Создание рабочей директории
 WORKDIR /app
@@ -18,8 +19,10 @@ WORKDIR /app
 # Копирование файлов админки
 COPY . .
 
-# Создание пользователя для безопасности
-RUN useradd -m -u 1000 admin && chown -R admin:admin /app
+# Создание директории логов и пользователя для безопасности
+RUN mkdir -p /app/logs && \
+    useradd -m -u 1000 admin && \
+    chown -R admin:admin /app
 USER admin
 
 # Открытие порта

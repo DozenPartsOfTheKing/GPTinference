@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Установка Python зависимостей
-RUN pip install --no-cache-dir requests
+RUN pip install --no-cache-dir requests loguru
 
 # Создание пользователя
 RUN groupadd -r frontend && useradd -r -g frontend frontend
@@ -17,8 +17,9 @@ WORKDIR /app
 # Копирование файлов фронтенда
 COPY . .
 
-# Права доступа
-RUN chown -R frontend:frontend /app
+# Создание директории логов и права доступа
+RUN mkdir -p /app/logs && \
+    chown -R frontend:frontend /app
 USER frontend
 
 # Порт
