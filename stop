@@ -1,0 +1,4 @@
+#!/bin/bash
+# Остановка GPTInfernse
+echo "🛑 Остановка GPTInfernse..."
+./kill_all.sh

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Просмотр логов GPTInfernse
+echo "📄 Логи GPTInfernse..."
+./debug_logs.sh

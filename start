@@ -1,0 +1,4 @@
+#!/bin/bash
+# Простой запуск GPTInfernse
+echo "🚀 Запуск GPTInfernse..."
+./full_restart.sh
