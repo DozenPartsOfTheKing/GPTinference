@@ -175,7 +175,7 @@ def run_server(port=3000, host='localhost'):
 if __name__ == "__main__":
     # Парсинг аргументов командной строки
     port = 3000
-    host = 'localhost'
+    host = '0.0.0.0'
     
     if len(sys.argv) > 1:
         try:
