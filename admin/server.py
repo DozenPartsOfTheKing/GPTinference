@@ -223,7 +223,9 @@ class AdminHandler(SimpleHTTPRequestHandler):
             # Пытаемся подключиться к Redis напрямую
             import redis
             
-            r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+            # Пытаемся подключиться к Redis (сначала Docker, потом localhost)
+            redis_host = os.getenv('REDIS_HOST', 'redis')  # 'redis' для Docker, 'localhost' для локального запуска
+            r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
             info = r.info()
             
             redis_stats = {

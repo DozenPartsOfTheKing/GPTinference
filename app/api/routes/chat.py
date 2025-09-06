@@ -32,8 +32,13 @@ async def create_chat_task(
     """
     
     try:
+        logger.info(f"🚀 Creating chat task for user {user_id}, model: {request.model}")
+        logger.debug(f"Request details: prompt_length={len(request.prompt)}, stream={request.stream}")
+        
         # Validate model availability
+        logger.info(f"🔍 Validating model availability: {request.model}")
         if not await ollama_manager.is_model_available(request.model):
+            logger.warning(f"❌ Model not available: {request.model}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Model '{request.model}' is not available"
@@ -186,8 +191,13 @@ async def chat_sync(
     """
     
     try:
+        logger.info(f"🔄 Processing sync chat for user {user_id}, model: {request.model}")
+        logger.debug(f"Sync request details: prompt_length={len(request.prompt)}, conversation_id={request.conversation_id}")
+        
         # Validate model availability
+        logger.info(f"🔍 Validating model availability: {request.model}")
         if not await ollama_manager.is_model_available(request.model):
+            logger.warning(f"❌ Model not available: {request.model}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Model '{request.model}' is not available"

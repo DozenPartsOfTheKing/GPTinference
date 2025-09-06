@@ -59,9 +59,13 @@ def process_chat_task(
     """
     
     try:
+        logger.info(f"🚀 Starting chat task processing: {task_request}")
+        
         # Parse task request
         task_req = ChatTaskRequest(**task_request)
         chat_req = task_req.chat_request
+        
+        logger.info(f"✅ Successfully parsed task request: {task_req.task_id}")
         
         logger.info(
             f"Processing chat task {task_req.task_id} for user {task_req.user_id}",
@@ -124,14 +128,19 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
             
             try:
                 # Initialize services
-                chat_logger.debug("🔧 Initializing services...")
+                chat_logger.info("🔧 Initializing services...")
+                chat_logger.debug(f"Ollama manager: {ollama_manager}")
+                chat_logger.debug(f"Memory manager: {memory_manager}")
+                
                 await ollama_manager._get_session()
+                chat_logger.info("✅ Ollama session initialized")
             
                 # Get or create conversation ID
                 conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
                 chat_logger.info(f"📝 Using conversation ID: {conversation_id}")
                 
                 # Build context-aware prompt
+                chat_logger.info("🧠 Building context-aware prompt...")
                 with MemoryLogContext("Build Context Prompt", conversation_id=conversation_id, user_id=task_request.user_id):
                     enhanced_prompt = await _build_context_prompt(
                         memory_manager, 
@@ -140,6 +149,7 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                         task_request.user_id,
                         task_request.chat_request.model
                     )
+                chat_logger.info(f"✅ Context prompt built, length: {len(enhanced_prompt)} chars")
                 
                 # Prepare Ollama request with enhanced prompt
                 ollama_options = OllamaGenerateOptions(
@@ -155,10 +165,19 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                     options=ollama_options,
                 )
                 
+                chat_logger.info(f"📋 Ollama request prepared: model={task_request.chat_request.model}")
+                chat_logger.debug(f"Request options: temp={ollama_options.temperature}, top_p={ollama_options.top_p}")
+                
                 # Generate response
                 chat_logger.info(f"🤖 Sending request to Ollama...")
                 chat_logger.debug(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
-                ollama_response = await ollama_manager.generate(ollama_request)
+                
+                try:
+                    ollama_response = await ollama_manager.generate(ollama_request)
+                    chat_logger.info(f"✅ Received response from Ollama: {len(ollama_response.response)} chars")
+                except Exception as e:
+                    chat_logger.error(f"❌ Ollama request failed: {e}")
+                    raise
                 
                 processing_time = time.time() - start_time
                 chat_response = ChatResponse(
@@ -170,6 +189,7 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                 )
                 
                 # Save to memory
+                chat_logger.info("💾 Saving conversation to memory...")
                 try:
                     await _save_conversation_messages(
                         memory_manager,
@@ -180,8 +200,9 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                         ollama_response.model,
                         ollama_response.eval_count or 0
                     )
+                    chat_logger.info("✅ Conversation saved to memory successfully")
                 except Exception as e:
-                    chat_logger.warning(f"Failed to save conversation to memory: {e}")
+                    chat_logger.error(f"❌ Failed to save conversation to memory: {e}", exc_info=True)
                     # Don't fail the task if memory save fails
                 
                 chat_logger.success(
