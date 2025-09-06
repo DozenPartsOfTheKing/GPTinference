@@ -17,8 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY *.py ./
 
-# Создание пользователя для безопасности
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# Создание директории логов и пользователя
+RUN mkdir -p /app/logs && \
+    useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 USER appuser
 
 # Команда запуска Celery worker

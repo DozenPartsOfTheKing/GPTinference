@@ -11,9 +11,9 @@ def setup_frontend_loguru():
     # Remove default handler
     logger.remove()
     
-    # Create logs directory
+    # Create logs directory with proper permissions
     logs_dir = Path("/app/logs")
-    logs_dir.mkdir(exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
     
     # Console logging
     logger.add(
