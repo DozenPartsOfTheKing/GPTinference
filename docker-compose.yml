@@ -1,6 +1,29 @@
 version: '3.8'
 
 services:
+  # PostgreSQL для персистентного хранения
+  postgres:
+    image: postgres:15-alpine
+    container_name: gptinfernse-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=gptinfernse
+      - POSTGRES_USER=gptinfernse
+      - POSTGRES_PASSWORD=gptinfernse_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gptinfernse -d gptinfernse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gptinfernse
+
   # Redis для кеширования и очередей
   redis:
     image: redis:7-alpine
@@ -58,6 +81,10 @@ services:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://gptinfernse:gptinfernse_password@postgres:5432/gptinfernse
       - OLLAMA_BASE_URL=http://ollama:11434
       - DEBUG=true
       - LOG_LEVEL=INFO
@@ -65,6 +92,8 @@ services:
       - ./logs:/app/logs
       - ./app:/app/app:ro
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       ollama:
@@ -86,6 +115,10 @@ services:
     container_name: gptinfernse-worker
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://gptinfernse:gptinfernse_password@postgres:5432/gptinfernse
       - OLLAMA_BASE_URL=http://ollama:11434
       - DEBUG=true
       - LOG_LEVEL=INFO
@@ -93,6 +126,8 @@ services:
       - ./logs:/app/logs
       - ./app:/app/app:ro
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       ollama:
@@ -165,6 +200,8 @@ services:
       - gptinfernse
 
 volumes:
+  postgres_data:
+    driver: local
   redis_data:
     driver: local
   ollama_data:

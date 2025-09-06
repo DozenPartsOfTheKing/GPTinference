@@ -106,10 +106,12 @@ check_service() {
 sleep 5
 
 echo ""
+check_service "PostgreSQL" "http://localhost:5432" || true
 check_service "Redis" "http://localhost:6379" || true
 check_service "Ollama" "http://localhost:11434/api/tags" || true
 check_service "API" "http://localhost:8000/health" || true
 check_service "Frontend" "http://localhost:3000" || true
+check_service "Admin Panel" "http://localhost:3002" || true
 
 # 7. Устанавливаем модели Ollama
 log_info "Проверяем модели Ollama..."
@@ -143,9 +145,16 @@ echo ""
 log_info "Финальная проверка..."
 
 services_ok=0
-total_services=4
+total_services=6
 
 # Проверяем каждый сервис
+if docker exec gptinfernse-postgres pg_isready -U gptinfernse > /dev/null 2>&1; then
+    log_success "✅ PostgreSQL работает"
+    ((services_ok++))
+else
+    log_error "❌ PostgreSQL не отвечает"
+fi
+
 if curl -s http://localhost:6379 > /dev/null 2>&1 || docker exec gptinfernse-redis redis-cli ping > /dev/null 2>&1; then
     log_success "✅ Redis работает"
     ((services_ok++))
@@ -174,6 +183,13 @@ else
     log_error "❌ Frontend не отвечает"
 fi
 
+if curl -s http://localhost:3002 > /dev/null 2>&1; then
+    log_success "✅ Admin Panel работает"
+    ((services_ok++))
+else
+    log_error "❌ Admin Panel не отвечает"
+fi
+
 # 10. Итоговый отчет
 echo ""
 echo -e "${BLUE}🎯 ИТОГОВЫЙ СТАТУС${NC}"
@@ -186,9 +202,12 @@ if [ $services_ok -eq $total_services ]; then
     echo ""
     echo -e "${GREEN}🔗 Полезные ссылки:${NC}"
     echo "  🌐 Интерфейс:     http://localhost:3000"
+    echo "  🛠️  Админ-панель:  http://localhost:3002"
     echo "  📚 API Docs:      http://localhost:8000/docs"
     echo "  🏥 Health Check:  http://localhost:8000/health/detailed"
     echo "  🌸 Flower:        http://localhost:5555"
+    echo "  🐘 PostgreSQL:    localhost:5432 (gptinfernse/gptinfernse_password)"
+    echo "  🔴 Redis:         localhost:6379"
     echo ""
     echo -e "${BLUE}📊 Управление:${NC}"
     echo "  Логи:           $COMPOSE_CMD logs -f"

@@ -11,7 +11,7 @@ from celery.exceptions import Retry
 
 from ..utils.celery_app import celery_app
 from ..services.ollama_manager import get_ollama_manager
-from ..services.memory_manager import get_memory_manager
+from ..services.hybrid_memory_manager import get_hybrid_memory_manager
 from ..models.chat import ChatRequest, ChatResponse, ChatTaskRequest
 from ..models.ollama import OllamaRequest, OllamaGenerateOptions
 from ..models.memory import ConversationMessage
@@ -107,7 +107,7 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
     
     start_time = time.time()
     ollama_manager = get_ollama_manager()
-    memory_manager = get_memory_manager()
+    memory_manager = get_hybrid_memory_manager()
     
     try:
         # Initialize services

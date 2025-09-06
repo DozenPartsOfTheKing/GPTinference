@@ -14,7 +14,8 @@ from .utils.logging import setup_logging, LoggingMiddleware
 from .api.routes import chat, health, models, memory
 from .services.ollama_manager import get_ollama_manager
 from .services.rate_limiter import get_rate_limiter, RateLimitExceeded
-from .services.memory_manager import close_memory_manager
+from .services.hybrid_memory_manager import close_hybrid_memory_manager
+from .services.database_manager import close_database_manager
 
 # Setup logging
 setup_logging()
@@ -119,6 +120,19 @@ app.include_router(health.router)
 app.include_router(models.router)
 app.include_router(chat.router)
 app.include_router(memory.router)
+
+
+# Startup and shutdown events
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    logger.info("Shutting down application...")
+    
+    # Close memory managers
+    await close_hybrid_memory_manager()
+    await close_database_manager()
+    
+    logger.info("Application shutdown complete")
 
 
 # Global exception handlers

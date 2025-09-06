@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     ollama_timeout: int = Field(default=300, env="OLLAMA_TIMEOUT")
     ollama_max_retries: int = Field(default=3, env="OLLAMA_MAX_RETRIES")
     
+    # Database
+    database_url: str = Field(
+        default="postgresql://gptinfernse:gptinfernse_password@localhost:5432/gptinfernse", 
+        env="DATABASE_URL"
+    )
+    
     # Celery
     celery_broker_url: str = Field(default="redis://localhost:6379/0", env="CELERY_BROKER_URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/0", env="CELERY_RESULT_BACKEND")
