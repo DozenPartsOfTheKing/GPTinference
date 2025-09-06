@@ -15,7 +15,7 @@ celery[redis]==5.3.4
 asyncpg==0.29.0
 sqlalchemy==2.0.23
 alembic==1.13.1
-redis==5.0.1
+redis>=4.5.2,<5.0.0
 
 # Monitoring and logging
 prometheus-fastapi-instrumentator==6.1.0
