@@ -50,10 +50,10 @@ class DatabaseManager:
             await self.pool.close()
             logger.info("Database connection pool closed")
     
-    async def get_connection(self):
+    def get_connection(self):
         """Get database connection from pool."""
         if not self.pool:
-            await self.init_pool()
+            raise RuntimeError("Database pool not initialized. Call init_pool() first.")
         return self.pool.acquire()
     
     # User Management
