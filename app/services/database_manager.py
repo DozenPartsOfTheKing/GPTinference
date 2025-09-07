@@ -405,6 +405,52 @@ class DatabaseManager:
                 key,
             )
             return result != "DELETE 0"
+
+    async def list_conversations(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        user_identifier: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List recent conversations with basic stats."""
+        async with self.get_connection() as conn:
+            if user_identifier:
+                query = """
+                    SELECT c.conversation_id, c.message_count, c.total_tokens, c.updated_at
+                    FROM conversations c
+                    JOIN users u ON c.user_id = u.id
+                    WHERE c.is_active = TRUE AND u.user_identifier = $1
+                    ORDER BY c.updated_at DESC
+                    LIMIT $2 OFFSET $3
+                """
+                rows = await conn.fetch(query, user_identifier, limit, offset)
+            else:
+                query = """
+                    SELECT conversation_id, message_count, total_tokens, updated_at
+                    FROM conversations
+                    WHERE is_active = TRUE
+                    ORDER BY updated_at DESC
+                    LIMIT $1 OFFSET $2
+                """
+                rows = await conn.fetch(query, limit, offset)
+            return [dict(r) for r in rows]
+
+    async def list_users(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """List users with basic info and facts."""
+        async with self.get_connection() as conn:
+            query = """
+                SELECT user_identifier, preferences, facts, last_active, created_at, updated_at
+                FROM users
+                WHERE is_active = TRUE
+                ORDER BY last_active DESC
+                LIMIT $1 OFFSET $2
+            """
+            rows = await conn.fetch(query, limit, offset)
+            return [dict(r) for r in rows]
     
     # Statistics
     

@@ -116,7 +116,10 @@ class AdminHandler(SimpleHTTPRequestHandler):
             
             headers = {
                 'Content-Type': 'application/json',
-                'User-Agent': 'GPTInfernse-Admin/1.0'
+                'User-Agent': 'GPTInfernse-Admin/1.0',
+                'X-Admin': 'true',
+                # Forward client IP for consistent anon id and rate limit grouping
+                'X-Forwarded-For': self.client_address[0]
             }
             
             # Подготавливаем данные для POST/PUT запросов

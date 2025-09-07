@@ -4,7 +4,8 @@
 
 class AdminPanel {
     constructor() {
-        this.apiBaseUrl = 'http://localhost:8000';
+        // Prefer proxy through admin server to preserve headers and avoid CORS
+        this.apiBaseUrl = '/api';
         this.adminApiUrl = '/admin-api';
         this.currentSection = 'dashboard';
         this.refreshInterval = null;

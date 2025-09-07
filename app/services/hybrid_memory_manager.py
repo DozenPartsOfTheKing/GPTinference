@@ -569,6 +569,23 @@ class HybridMemoryManager:
         except Exception as e:
             logger.error(f"Error getting memory stats: {e}")
             return MemoryStats()
+
+    # Admin-friendly listing
+    async def list_recent_conversations(self, limit: int = 50, offset: int = 0, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            db = await get_database_manager()
+            return await db.list_conversations(limit=limit, offset=offset, user_identifier=user_id)
+        except Exception as e:
+            logger.error(f"Error listing conversations: {e}")
+            return []
+
+    async def list_users(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        try:
+            db = await get_database_manager()
+            return await db.list_users(limit=limit, offset=offset)
+        except Exception as e:
+            logger.error(f"Error listing users: {e}")
+            return []
     
     # Helper Methods
     

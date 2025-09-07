@@ -455,28 +455,51 @@ async def query_memories(
     query: MemoryQuery,
     user_id: str = Depends(check_user_rate_limit),
     memory_manager = Depends(get_hybrid_memory_manager),
+    request: Any = None,
 ) -> Dict[str, Any]:
-    """Query memories with filters."""
-    
+    """Query memories with filters. If X-Admin: true header is present, allow global queries."""
     try:
-        # Restrict user queries to their own data
-        if not query.user_id:
-            query.user_id = user_id
-        elif query.user_id != user_id:
-            # TODO: Add admin role check to allow querying other users
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to other user's memories"
+        is_admin = False
+        try:
+            # Detect admin header for elevated listing
+            from fastapi import Request  # type: ignore
+            if isinstance(request, Request):
+                admin_header = request.headers.get('X-Admin')
+                is_admin = str(admin_header).lower() in ['1', 'true', 'yes']
+        except Exception:
+            pass
+
+        # Restrict user queries unless admin
+        if not is_admin:
+            if not query.user_id:
+                query.user_id = user_id
+            elif query.user_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied to other user's memories"
+                )
+
+        # Fallback to existing redis-based query for compatibility
+        results = await memory_manager.query_memories(query) if hasattr(memory_manager, 'query_memories') else {"conversations": [], "users": [], "system_memories": [], "total_count": 0}
+
+        # If admin and no redis data, provide DB-backed summaries for UI
+        if is_admin:
+            # Conversations
+            convs = await memory_manager.list_recent_conversations(limit=query.limit, offset=query.offset, user_id=query.user_id)
+            # Users
+            users = await memory_manager.list_users(limit=query.limit, offset=query.offset)
+            results["conversations"] = results.get("conversations") or convs
+            results["users"] = results.get("users") or users
+            results["total_count"] = (
+                len(results.get("conversations", [])) + len(results.get("users", [])) + len(results.get("system_memories", []))
             )
-        
-        results = await memory_manager.query_memories(query)
-        
+
         return {
             "success": True,
             "data": results,
             "message": f"Found {results['total_count']} memories"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
