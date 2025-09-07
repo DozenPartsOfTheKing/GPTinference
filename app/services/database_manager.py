@@ -223,17 +223,28 @@ class DatabaseManager:
             
             if include_messages:
                 # Get messages
-                query = """
-                    SELECT message_id, role, content, tokens, model, metadata, created_at
-                    FROM messages 
-                    WHERE conversation_id = $1 
-                    ORDER BY created_at ASC
-                """
-                
                 if message_limit:
-                    query += f" LIMIT {message_limit}"
-                
-                messages = await conn.fetch(query, conversation['id'])
+                    # Fetch latest N messages and return in chronological order
+                    query = """
+                        SELECT message_id, role, content, tokens, model, metadata, created_at
+                        FROM (
+                            SELECT message_id, role, content, tokens, model, metadata, created_at
+                            FROM messages
+                            WHERE conversation_id = $1
+                            ORDER BY created_at DESC
+                            LIMIT $2
+                        ) sub
+                        ORDER BY created_at ASC
+                    """
+                    messages = await conn.fetch(query, conversation['id'], message_limit)
+                else:
+                    query = """
+                        SELECT message_id, role, content, tokens, model, metadata, created_at
+                        FROM messages 
+                        WHERE conversation_id = $1 
+                        ORDER BY created_at ASC
+                    """
+                    messages = await conn.fetch(query, conversation['id'])
                 result['messages'] = [dict(msg) for msg in messages]
             
             return result
