@@ -139,7 +139,7 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
                 conversation_id = task_request.chat_request.conversation_id or str(uuid.uuid4())
                 chat_logger.info(f"📝 Using conversation ID: {conversation_id}")
                 
-                # Build context-aware prompt
+                # Build context-aware prompt (include active system prompt if configured)
                 chat_logger.info("🧠 Building context-aware prompt...")
                 with MemoryLogContext("Build Context Prompt", conversation_id=conversation_id, user_id=task_request.user_id):
                     enhanced_prompt = await _build_context_prompt(
@@ -446,6 +446,22 @@ async def _build_context_prompt(
         # Build system context
         system_context = []
         
+        # Try to fetch active system prompt
+        try:
+            active_prompt = await memory_manager.get_active_system_prompt()
+            if active_prompt and isinstance(active_prompt, dict):
+                prompt_title = active_prompt.get("title") or active_prompt.get("key")
+                prompt_content = active_prompt.get("content") or ""
+                if prompt_content:
+                    system_context.append("СИСТЕМНЫЕ ИНСТРУКЦИИ:")
+                    if prompt_title:
+                        system_context.append(f"Название: {prompt_title}")
+                    system_context.append(prompt_content)
+                    system_context.append("")
+        except Exception:
+            # Ignore prompt fetch errors
+            pass
+
         # Add model identity
         system_context.append(f"Ты - AI ассистент, работающий на модели {model}.")
         

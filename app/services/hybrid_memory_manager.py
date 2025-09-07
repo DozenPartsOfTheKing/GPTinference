@@ -16,6 +16,7 @@ from ..core.config import get_settings
 from ..models.memory import (
     ConversationMemory,
     ConversationMessage,
+    SystemMemory,
     MemoryQuery,
     MemoryStats,
     UserMemory,
@@ -416,6 +417,112 @@ class HybridMemoryManager:
         except Exception as e:
             logger.error(f"Error setting system memory: {e}")
             return False
+
+    async def save_system_memory(
+        self,
+        system_memory: SystemMemory,
+        ttl_hours: Optional[int] = None
+    ) -> bool:
+        """Save system memory entry using database persistence."""
+        try:
+            db = await get_database_manager()
+            return await db.set_system_memory(
+                key=system_memory.key,
+                value=system_memory.value,
+                memory_type=system_memory.memory_type.value if hasattr(system_memory.memory_type, 'value') else str(system_memory.memory_type),
+                priority=system_memory.priority.value if hasattr(system_memory.priority, 'value') else str(system_memory.priority),
+                tags=system_memory.tags,
+                ttl_hours=ttl_hours
+            )
+        except Exception as e:
+            logger.error(f"Error saving system memory: {e}")
+            return False
+
+    async def delete_system_memory(self, key: str) -> bool:
+        """Delete system memory entry by key."""
+        try:
+            db = await get_database_manager()
+            return await db.delete_system_memory(key)
+        except Exception as e:
+            logger.error(f"Error deleting system memory: {e}")
+            return False
+
+    async def list_system_prompts(self) -> List[Dict[str, Any]]:
+        """List stored system prompts (tagged with 'system_prompt')."""
+        try:
+            db = await get_database_manager()
+            rows = await db.list_system_memory(memory_type='system_facts', include_expired=False)
+            prompts = [row for row in rows if row.get('tags') and 'system_prompt' in row['tags']]
+            return prompts
+        except Exception as e:
+            logger.error(f"Error listing system prompts: {e}")
+            return []
+
+    async def save_system_prompt(
+        self,
+        key: str,
+        content: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        model: Optional[str] = None,
+        created_by: Optional[str] = None,
+    ) -> bool:
+        """Create or update a system prompt."""
+        value = {
+            "title": title or key,
+            "content": content,
+            "description": description,
+            "model": model,
+            "created_by": created_by,
+        }
+        try:
+            db = await get_database_manager()
+            return await db.set_system_memory(
+                key=key,
+                value=value,
+                memory_type='system_facts',
+                priority='medium',
+                tags=['system_prompt'],
+                ttl_hours=None,
+            )
+        except Exception as e:
+            logger.error(f"Error saving system prompt: {e}")
+            return False
+
+    async def delete_system_prompt(self, key: str) -> bool:
+        """Delete a stored system prompt by key."""
+        return await self.delete_system_memory(key)
+
+    async def set_active_system_prompt(self, key: str) -> bool:
+        """Mark a stored system prompt as active by saving a pointer key."""
+        try:
+            # Ensure prompt exists
+            prompt = await self.get_system_memory(key)
+            if not prompt:
+                return False
+            return await self.set_system_memory(
+                key='system_prompt_active',
+                value={"key": key},
+                memory_type='preferences',
+            )
+        except Exception as e:
+            logger.error(f"Error setting active system prompt: {e}")
+            return False
+
+    async def get_active_system_prompt(self) -> Optional[Dict[str, Any]]:
+        """Return the active system prompt content and metadata if set."""
+        try:
+            pointer = await self.get_system_memory('system_prompt_active')
+            if not pointer or not isinstance(pointer, dict) or 'key' not in pointer:
+                return None
+            key = pointer['key']
+            prompt_value = await self.get_system_memory(key)
+            if prompt_value is None:
+                return None
+            return {"key": key, **(prompt_value if isinstance(prompt_value, dict) else {"content": str(prompt_value)})}
+        except Exception as e:
+            logger.error(f"Error getting active system prompt: {e}")
+            return None
     
     # Statistics
     

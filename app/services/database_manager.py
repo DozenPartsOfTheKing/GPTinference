@@ -369,6 +369,42 @@ class DatabaseManager:
                 return result['value']
             
             return None
+
+    async def list_system_memory(
+        self,
+        memory_type: Optional[str] = None,
+        include_expired: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """List system memory entries with optional type filter.
+
+        Returns a list of dicts with: key, value, memory_type, priority, tags, created_at, updated_at, expires_at, access_count, last_accessed
+        """
+        async with self.get_connection() as conn:
+            conditions = []
+            params: List[Any] = []
+            if memory_type:
+                conditions.append("memory_type = $1")
+                params.append(memory_type)
+            if not include_expired:
+                conditions.append("(expires_at IS NULL OR expires_at > NOW())")
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            query = f"""
+                SELECT key, value, memory_type, priority, tags, created_at, updated_at, expires_at, access_count, last_accessed
+                FROM system_memory
+                {where_clause}
+                ORDER BY updated_at DESC
+            """
+            rows = await conn.fetch(query, *params)
+            return [dict(r) for r in rows]
+
+    async def delete_system_memory(self, key: str) -> bool:
+        """Delete a system memory entry by key."""
+        async with self.get_connection() as conn:
+            result = await conn.execute(
+                "DELETE FROM system_memory WHERE key = $1",
+                key,
+            )
+            return result != "DELETE 0"
     
     # Statistics
     

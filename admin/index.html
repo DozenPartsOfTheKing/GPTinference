@@ -243,6 +243,20 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="info-card" style="margin-top: 16px;">
+                        <h3>Системные промпты</h3>
+                        <div class="section-actions" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <input type="text" id="sp-key" placeholder="Ключ промпта" style="flex: 1; min-width: 160px;">
+                            <input type="text" id="sp-title" placeholder="Название" style="flex: 1; min-width: 160px;">
+                            <input type="text" id="sp-description" placeholder="Описание" style="flex: 2; min-width: 180px;">
+                            <textarea id="sp-content" placeholder="Текст системного промпта" style="flex: 1 1 100%; min-height: 100px;"></textarea>
+                            <button id="sp-create-btn" class="btn btn-primary"><i class="fas fa-plus"></i> Сохранить промпт</button>
+                        </div>
+                        <div class="info-content" id="system-prompts-list">
+                            <div class="loading">Загрузка...</div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Logs Section -->

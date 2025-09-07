@@ -42,6 +42,12 @@ class AdminPanel {
             this.loadSystemInfo();
         });
 
+        // System prompts
+        const spCreateBtn = document.getElementById('sp-create-btn');
+        if (spCreateBtn) {
+            spCreateBtn.addEventListener('click', () => this.createSystemPrompt());
+        }
+
         // Memory management
         document.getElementById('clear-memory-btn').addEventListener('click', () => {
             this.showConfirmModal(
@@ -480,6 +486,9 @@ class AdminPanel {
                 this.updateApiInfo(apiData);
             }
 
+            // Load system prompts
+            await this.loadSystemPrompts();
+
         } catch (error) {
             console.error('Error loading system info:', error);
         }
@@ -559,6 +568,118 @@ class AdminPanel {
                 </span>
             </div>
         `;
+    }
+
+    async loadSystemPrompts() {
+        try {
+            const listEl = document.getElementById('system-prompts-list');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="loading">Загрузка...</div>';
+            const response = await fetch(`${this.apiBaseUrl}/system-prompts/`);
+            const activeResp = await fetch(`${this.apiBaseUrl}/system-prompts/active`);
+            const data = response.ok ? await response.json() : [];
+            const active = activeResp.ok ? (await activeResp.json()).active : null;
+
+            if (!data || data.length === 0) {
+                listEl.innerHTML = '<div class="no-data">Промпты не найдены</div>';
+                return;
+            }
+
+            listEl.innerHTML = data.map(item => {
+                const isActive = active && active.key === item.key;
+                const title = (item.value && item.value.title) || item.title || item.key;
+                const content = (item.value && item.value.content) || item.content || '';
+                const descr = (item.value && item.value.description) || item.description || '';
+                return `
+                    <div class="memory-item">
+                        <div class="memory-item-info">
+                            <div class="memory-item-title">${title} ${isActive ? '<span class="badge">Активный</span>' : ''}</div>
+                            <div class="memory-item-meta">
+                                Ключ: ${item.key} ${descr ? '• ' + this.escapeHtml(descr) : ''}
+                            </div>
+                            <div class="memory-item-content" style="white-space: pre-wrap; color: var(--text-secondary); margin-top: 6px;">${this.escapeHtml(content).slice(0, 500)}</div>
+                        </div>
+                        <div class="memory-item-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="adminPanel.activateSystemPrompt('${item.key}')">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteSystemPrompt('${item.key}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error('Error loading system prompts:', error);
+            const el = document.getElementById('system-prompts-list');
+            if (el) el.innerHTML = '<div class="error">Ошибка загрузки</div>';
+        }
+    }
+
+    async createSystemPrompt() {
+        try {
+            const key = document.getElementById('sp-key').value.trim();
+            const title = document.getElementById('sp-title').value.trim();
+            const description = document.getElementById('sp-description').value.trim();
+            const content = document.getElementById('sp-content').value.trim();
+
+            if (!key || !content) {
+                this.showNotification('Ключ и контент обязательны', 'error');
+                return;
+            }
+
+            const resp = await fetch(`${this.apiBaseUrl}/system-prompts/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, title, description, content })
+            });
+
+            if (resp.ok) {
+                this.showNotification('Промпт сохранён', 'success');
+                await this.loadSystemPrompts();
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                this.showNotification(data.detail || 'Ошибка сохранения промпта', 'error');
+            }
+        } catch (e) {
+            this.showNotification('Ошибка сохранения промпта', 'error');
+        }
+    }
+
+    async activateSystemPrompt(key) {
+        try {
+            const resp = await fetch(`${this.apiBaseUrl}/system-prompts/${encodeURIComponent(key)}/activate`, { method: 'PUT' });
+            if (resp.ok) {
+                this.showNotification('Промпт активирован', 'success');
+                await this.loadSystemPrompts();
+            } else {
+                this.showNotification('Не удалось активировать промпт', 'error');
+            }
+        } catch (e) {
+            this.showNotification('Ошибка активации промпта', 'error');
+        }
+    }
+
+    async deleteSystemPrompt(key) {
+        this.showConfirmModal('Удалить промпт', `Удалить системный промпт ${key}?`, async () => {
+            try {
+                const resp = await fetch(`${this.apiBaseUrl}/system-prompts/${encodeURIComponent(key)}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    this.showNotification('Промпт удалён', 'success');
+                    await this.loadSystemPrompts();
+                } else {
+                    this.showNotification('Не удалось удалить промпт', 'error');
+                }
+            } catch (e) {
+                this.showNotification('Ошибка удаления промпта', 'error');
+            }
+        });
+    }
+
+    escapeHtml(str) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(str).replace(/[&<>"']/g, m => map[m]);
     }
 
     async loadLogs() {

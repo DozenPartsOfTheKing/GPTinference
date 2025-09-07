@@ -12,7 +12,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from .core.config import settings
 from .utils.logging import setup_logging, LoggingMiddleware
 from .utils.loguru_config import setup_loguru, get_logger
-from .api.routes import chat, health, models, memory
+from .api.routes import chat, health, models, memory, system_prompts
 from .services.ollama_manager import get_ollama_manager
 from .services.rate_limiter import get_rate_limiter, RateLimitExceeded
 from .services.hybrid_memory_manager import close_hybrid_memory_manager
@@ -122,6 +122,7 @@ app.include_router(health.router)
 app.include_router(models.router)
 app.include_router(chat.router)
 app.include_router(memory.router)
+app.include_router(system_prompts.router)
 
 
 # Startup and shutdown events
