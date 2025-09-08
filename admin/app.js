@@ -24,7 +24,7 @@ class AdminPanel {
                 activeEl.innerHTML = `
                     <div class="info-item"><span class="info-label">Ключ:</span> <span class="info-value">${active.key}</span></div>
                     <div class="info-item"><span class="info-label">Название:</span> <span class="info-value">${active.title || active.key}</span></div>
-                    <div class="info-item"><span class="info-label">Классы:</span> <span class="info-value">${this.escapeHtml(classes)}</span></div>
+                    <div class="info-item"><span class="info-label">Классы:</span> <span class="info-value">${this.escapeHtml(classes || 'default')}</span></div>
                 `;
             } else {
                 activeEl.innerHTML = '<div class="no-data">Активная схема не выбрана</div>';
@@ -47,7 +47,7 @@ class AdminPanel {
                             <div class="memory-item-info">
                                 <div class="memory-item-title">${title} ${isActive ? '<span class="badge">Активная</span>' : ''}</div>
                                 <div class="memory-item-meta">Ключ: ${item.key} ${descr ? '• ' + this.escapeHtml(descr) : ''}</div>
-                                <div class="memory-item-content" style="color: var(--text-secondary); margin-top: 6px;">Классы: ${this.escapeHtml(classes)}</div>
+                                <div class="memory-item-content" style="color: var(--text-secondary); margin-top: 6px;">Классы: ${this.escapeHtml(classes || 'default')}</div>
                             </div>
                             <div class="memory-item-actions">
                                 <button class="btn btn-secondary btn-sm" onclick="adminPanel.activateRouterSchema('${item.key}')"><i class="fas fa-check"></i></button>

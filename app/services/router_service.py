@@ -6,7 +6,22 @@ from ..models.ollama import OllamaRequest
 from ..services.ollama_manager import OllamaManager
 
 
+def _ensure_default_class(schema: Dict[str, Any]) -> Dict[str, Any]:
+    classes = list(schema.get("classes", []))
+    has_default = any((c.get("name") == "default") for c in classes if isinstance(c, dict))
+    if not has_default:
+        classes.append({
+            "name": "default",
+            "description": "Стандартный ответ (обычный чат)",
+        })
+    schema = dict(schema)
+    schema["classes"] = classes
+    return schema
+
+
 def build_router_system_prompt(schema: Dict[str, Any], system_message_override: Optional[str]) -> str:
+    # Ensure default class is always present
+    schema = _ensure_default_class(schema)
     if system_message_override:
         base = system_message_override
     else:
@@ -33,6 +48,7 @@ def build_router_system_prompt(schema: Dict[str, Any], system_message_override: 
 
 
 def build_router_user_prompt(user_query: str, schema: Dict[str, Any]) -> str:
+    schema = _ensure_default_class(schema)
     class_names = ", ".join([c.get("name") for c in schema.get("classes", [])])
     return (
         f"Тебе приходит вопрос. Доступно классов: {len(schema.get('classes', []))}. "
@@ -49,6 +65,7 @@ async def run_router(
     system_message_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute routing and return parsed result with fallbacks."""
+    # Ensure default in prompts
     sys_prompt = build_router_system_prompt(schema, system_message_override)
     user_prompt = build_router_user_prompt(query, schema)
 
@@ -82,6 +99,10 @@ async def run_router(
             by_class_key = parsed
     except Exception:
         pass
+
+    # If model didn't return a class, force default
+    if not selected_class:
+        selected_class = "default"
 
     return {
         "selected_class": selected_class,
