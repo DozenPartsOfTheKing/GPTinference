@@ -13,6 +13,8 @@ from ...services.ollama_manager import get_ollama_manager, OllamaManager
 from ...api.dependencies import check_user_rate_limit, get_client_info
 from ...utils.celery_app import get_celery_app
 from ...workers.chat_worker import process_chat_task, process_streaming_chat_task
+from ...services.hybrid_memory_manager import get_hybrid_memory_manager
+from ...services.router_service import run_router
 
 logger = get_logger(__name__)
 
@@ -26,6 +28,7 @@ async def create_chat_task(
     user_id: str = Depends(check_user_rate_limit),
     client_info: Dict[str, Any] = Depends(get_client_info),
     ollama_manager: OllamaManager = Depends(get_ollama_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> Dict[str, Any]:
     """
     Create a new chat task (async processing).
@@ -61,18 +64,28 @@ async def create_chat_task(
             retry_count=0,
         )
         
+        # Optionally run routing first (no memory needed). If routing fails or inactive, proceed normally.
+        routing_result = None
+        try:
+            active_router = await memory_manager.get_active_router_schema()
+            if active_router:
+                schema = active_router.get("schema") or {}
+                # Ensure routing model is available; if not, skip routing
+                routing_model = "llama3.2:3b"
+                if await ollama_manager.is_model_available(routing_model):
+                    routing_result = await run_router(ollama_manager, schema, request.prompt, model=routing_model)
+        except Exception:
+            routing_result = None
+
         # Submit task to Celery
         celery_app = get_celery_app()
-        
         if request.stream:
-            # Use streaming task
             celery_task = process_streaming_chat_task.delay(
                 task_request.dict()
             )
         else:
-            # Use regular task
             celery_task = process_chat_task.delay(
-                task_request.dict()
+                task_request.dict(), routing_result
             )
         
         logger.bind(task_id=task_id, celery_task_id=celery_task.id, user_id=user_id, model=request.model, stream=request.stream, client_ip=client_info.get("ip")).info(
@@ -177,6 +190,7 @@ async def chat_sync(
     user_id: str = Depends(check_user_rate_limit),
     client_info: Dict[str, Any] = Depends(get_client_info),
     ollama_manager: OllamaManager = Depends(get_ollama_manager),
+    memory_manager = Depends(get_hybrid_memory_manager),
 ) -> ChatResponse:
     """
     Synchronous chat endpoint (direct processing).
@@ -215,7 +229,19 @@ async def chat_sync(
         # Import and use the async processing function directly
         from ...workers.chat_worker import _process_chat_async
         
-        result = await _process_chat_async(task_request)
+        # Optional routing before processing (queues not used in sync, but logic consistent)
+        routing_result = None
+        try:
+            active_router = await memory_manager.get_active_router_schema()
+            if active_router:
+                schema = active_router.get("schema") or {}
+                routing_model = "llama3.2:3b"
+                if await ollama_manager.is_model_available(routing_model):
+                    routing_result = await run_router(ollama_manager, schema, request.prompt, model=routing_model)
+        except Exception:
+            routing_result = None
+
+        result = await _process_chat_async(task_request, routing_result=routing_result)
         
         # Convert result to ChatResponse
         chat_response = ChatResponse(**result)

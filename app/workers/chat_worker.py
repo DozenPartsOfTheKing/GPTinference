@@ -14,6 +14,7 @@ from ..utils.loguru_config import get_logger, ChatLogContext, MemoryLogContext
 from ..utils.celery_app import celery_app
 from ..services.ollama_manager import get_ollama_manager
 from ..services.hybrid_memory_manager import get_hybrid_memory_manager
+from ..services.router_service import run_router
 from ..models.chat import ChatRequest, ChatResponse, ChatTaskRequest
 from ..models.ollama import OllamaRequest, OllamaGenerateOptions
 from ..models.memory import ConversationMessage
@@ -47,6 +48,7 @@ class CallbackTask(Task):
 def process_chat_task(
     self,
     task_request: Dict[str, Any],
+    routing_result: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """
     Process chat request asynchronously.
@@ -77,7 +79,7 @@ def process_chat_task(
         
         try:
             result = loop.run_until_complete(
-                _process_chat_async(task_req)
+                _process_chat_async(task_req, routing_result=routing_result)
             )
             return result
         finally:
@@ -102,7 +104,7 @@ def process_chat_task(
         }
 
 
-async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
+async def _process_chat_async(task_request: ChatTaskRequest, routing_result: Dict[str, Any] = None) -> Dict[str, Any]:
     """Async chat processing logic with memory integration."""
     
     start_time = time.time()
@@ -116,6 +118,9 @@ async def _process_chat_async(task_request: ChatTaskRequest) -> Dict[str, Any]:
         ) as chat_logger:
             
             chat_logger.info(f"🎯 Processing chat request: {task_request.chat_request.prompt[:100]}...")
+            if routing_result:
+                sel = routing_result.get("selected_class")
+                chat_logger.info(f"🧭 Routing result: {sel or 'ordinary'}")
             
             ollama_manager = get_ollama_manager()
             memory_manager = get_hybrid_memory_manager()

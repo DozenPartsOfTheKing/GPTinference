@@ -10,6 +10,7 @@ from ...api.dependencies import check_user_rate_limit
 from ...services.hybrid_memory_manager import get_hybrid_memory_manager
 from ...services.ollama_manager import get_ollama_manager, OllamaManager
 from ...models.ollama import OllamaRequest
+from ...services.router_service import build_router_system_prompt, build_router_user_prompt
 from ...models.router import RouterCreateRequest, RouteRequest, RouteResponse
 
 logger = get_logger(__name__)
@@ -116,38 +117,11 @@ async def get_active_router_schema(
 
 
 def _build_router_system_prompt(schema: Dict[str, Any], system_message_override: Optional[str]) -> str:
-    if system_message_override:
-        base = system_message_override
-    else:
-        base = (
-            "Ты маршрутизатор намерений. Твоя задача — выбрать один класс из списка и вернуть JSON. "
-            "Отвечай строго JSON без лишнего текста. Если класс не подходит, верни пустой объект."
-        )
-    classes = schema.get("classes", [])
-    examples = schema.get("examples", [])
-    class_lines = [f"- {c.get('name')}: {c.get('description')}" for c in classes]
-    examples_lines = []
-    for ex in examples:
-        examples_lines.append(f"запрос: \"{ex.get('query')}\"")
-        examples_lines.append(f"{ex.get('expected')}")
-        examples_lines.append("")
-    return (
-        base
-        + "\n\nДоступные классы:"\
-        + ("\n" + "\n".join(class_lines) if class_lines else "\n- ")
-        + "\n\nПримеры формата ответа:"\
-        + ("\n" + "\n".join(examples_lines) if examples_lines else "\n")
-        + "\nВерни только JSON."
-    )
+    return build_router_system_prompt(schema, system_message_override)
 
 
 def _build_router_prompt(user_query: str, schema: Dict[str, Any]) -> str:
-    class_names = ", ".join([c.get("name") for c in schema.get("classes", [])])
-    return (
-        f"Тебе приходит вопрос. Доступно классов: {len(schema.get('classes', []))}. "
-        f"Названия классов: {class_names}. "
-        f"Верни ответ строго в JSON с выбранным классом и аргументами.\n\nВопрос: {user_query}"
-    )
+    return build_router_user_prompt(user_query, schema)
 
 
 @router.post("/route", response_model=RouteResponse)

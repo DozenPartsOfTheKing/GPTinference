@@ -281,7 +281,15 @@
                                     <h4 style="margin: 0;">Классы</h4>
                                     <div>
                                         <button id="router-add-class-btn" class="btn btn-secondary btn-sm">Добавить класс</button>
+                                        <button id="router-import-classes-btn" class="btn btn-secondary btn-sm">Вставить JSON</button>
                                         <span style="font-size: 12px; color: var(--text-secondary);">до 10</span>
+                                    </div>
+                                </div>
+                                <div id="router-classes-json" style="display:none;">
+                                    <textarea id="router-classes-json-text" placeholder='Вставьте JSON массив классов [ {"name":"...","description":"..."} ]' style="width: 100%; min-height: 100px; margin: 6px 0;"></textarea>
+                                    <div style="display:flex; gap: 8px;">
+                                        <button id="router-import-classes-confirm" class="btn btn-primary btn-sm">Импортировать</button>
+                                        <button id="router-import-classes-cancel" class="btn btn-secondary btn-sm">Отменить</button>
                                     </div>
                                 </div>
                                 <div id="router-classes-builder" class="router-builder-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
@@ -291,7 +299,15 @@
                                     <h4 style="margin: 0;">Примеры</h4>
                                     <div>
                                         <button id="router-add-example-btn" class="btn btn-secondary btn-sm">Добавить пример</button>
+                                        <button id="router-import-examples-btn" class="btn btn-secondary btn-sm">Вставить JSON</button>
                                         <span style="font-size: 12px; color: var(--text-secondary);">до 10</span>
+                                    </div>
+                                </div>
+                                <div id="router-examples-json" style="display:none;">
+                                    <textarea id="router-examples-json-text" placeholder='Вставьте JSON массив примеров [ {"query":"...","expected":{...}} ]' style="width: 100%; min-height: 140px; margin: 6px 0;"></textarea>
+                                    <div style="display:flex; gap: 8px;">
+                                        <button id="router-import-examples-confirm" class="btn btn-primary btn-sm">Импортировать</button>
+                                        <button id="router-import-examples-cancel" class="btn btn-secondary btn-sm">Отменить</button>
                                     </div>
                                 </div>
                                 <div id="router-examples-builder" class="router-builder-list" style="display: flex; flex-direction: column; gap: 6px;"></div>

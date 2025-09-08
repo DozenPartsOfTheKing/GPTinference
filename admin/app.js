@@ -91,6 +91,63 @@ class AdminPanel {
         }
     }
 
+    toggleImportArea(type, show) {
+        const areaId = type === 'classes' ? 'router-classes-json' : 'router-examples-json';
+        const area = document.getElementById(areaId);
+        if (!area) return;
+        area.style.display = show ? 'block' : 'none';
+    }
+
+    importClassesFromJson() {
+        try {
+            const text = document.getElementById('router-classes-json-text').value.trim();
+            if (!text) return this.toggleImportArea('classes', false);
+            const arr = JSON.parse(text);
+            if (!Array.isArray(arr)) throw new Error('Ожидался массив');
+            // Clear current
+            const list = document.getElementById('router-classes-builder');
+            list.innerHTML = '';
+            arr.slice(0, 10).forEach(item => {
+                const name = (item && item.name) || '';
+                const description = (item && item.description) || '';
+                this.addRouterClassRow({ name, description });
+            });
+            this.toggleImportArea('classes', false);
+            this.showNotification('Классы импортированы', 'success');
+        } catch (e) {
+            this.showNotification('Неверный JSON классов', 'error');
+        }
+    }
+
+    importExamplesFromJson() {
+        try {
+            const text = document.getElementById('router-examples-json-text').value.trim();
+            if (!text) return this.toggleImportArea('examples', false);
+            const arr = JSON.parse(text);
+            if (!Array.isArray(arr)) throw new Error('Ожидался массив');
+            const list = document.getElementById('router-examples-builder');
+            list.innerHTML = '';
+            arr.slice(0, 10).forEach(item => {
+                const query = (item && item.query) || '';
+                let expected_key = '';
+                let expected_value = '';
+                if (item && item.expected && typeof item.expected === 'object') {
+                    const keys = Object.keys(item.expected);
+                    if (keys.length > 0) {
+                        expected_key = keys[0];
+                        const val = item.expected[expected_key];
+                        expected_value = typeof val === 'string' ? val : JSON.stringify(val);
+                    }
+                }
+                this.addRouterExampleRow({ query, expected_key, expected_value });
+            });
+            this.toggleImportArea('examples', false);
+            this.showNotification('Примеры импортированы', 'success');
+        } catch (e) {
+            this.showNotification('Неверный JSON примеров', 'error');
+        }
+    }
+
     async activateRouterSchema(key) {
         try {
             const resp = await fetch(`${this.apiBaseUrl}/router/schemas/${encodeURIComponent(key)}/activate`, { method: 'PUT' });
@@ -230,9 +287,35 @@ class AdminPanel {
             addClassBtn.addEventListener('click', () => this.addRouterClassRow());
         }
 
+        const importClassesBtn = document.getElementById('router-import-classes-btn');
+        if (importClassesBtn) {
+            importClassesBtn.addEventListener('click', () => this.toggleImportArea('classes', true));
+        }
+        const importClassesConfirm = document.getElementById('router-import-classes-confirm');
+        if (importClassesConfirm) {
+            importClassesConfirm.addEventListener('click', () => this.importClassesFromJson());
+        }
+        const importClassesCancel = document.getElementById('router-import-classes-cancel');
+        if (importClassesCancel) {
+            importClassesCancel.addEventListener('click', () => this.toggleImportArea('classes', false));
+        }
+
         const addExampleBtn = document.getElementById('router-add-example-btn');
         if (addExampleBtn) {
             addExampleBtn.addEventListener('click', () => this.addRouterExampleRow());
+        }
+
+        const importExamplesBtn = document.getElementById('router-import-examples-btn');
+        if (importExamplesBtn) {
+            importExamplesBtn.addEventListener('click', () => this.toggleImportArea('examples', true));
+        }
+        const importExamplesConfirm = document.getElementById('router-import-examples-confirm');
+        if (importExamplesConfirm) {
+            importExamplesConfirm.addEventListener('click', () => this.importExamplesFromJson());
+        }
+        const importExamplesCancel = document.getElementById('router-import-examples-cancel');
+        if (importExamplesCancel) {
+            importExamplesCancel.addEventListener('click', () => this.toggleImportArea('examples', false));
         }
 
         const routerSaveBtn = document.getElementById('router-save-btn');
