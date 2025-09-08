@@ -112,7 +112,15 @@ class AdminHandler(SimpleHTTPRequestHandler):
         try:
             # Формируем URL для API
             api_base = get_api_base_url()
-            api_url = f"{api_base}{self.path}"
+            # Удаляем префикс "/api" из пути при проксировании, чтобы бить прямо в корень API
+            original_path = self.path or '/'
+            if original_path == '/api':
+                forward_path = '/'
+            elif original_path.startswith('/api/'):
+                forward_path = original_path[4:]  # remove '/api'
+            else:
+                forward_path = original_path
+            api_url = f"{api_base}{forward_path}"
             
             headers = {
                 'Content-Type': 'application/json',
@@ -151,7 +159,7 @@ class AdminHandler(SimpleHTTPRequestHandler):
             
             # Логирование
             status_emoji = "✅" if response.status_code < 400 else "❌"
-            logger.info(f"{status_emoji} PROXY {method} {self.path} -> {response.status_code}")
+            logger.info(f"{status_emoji} PROXY {method} {self.path} => {forward_path} -> {response.status_code}")
             
         except requests.exceptions.ConnectionError:
             logger.error(f"❌ Нет связи с API сервером: {api_url}")
