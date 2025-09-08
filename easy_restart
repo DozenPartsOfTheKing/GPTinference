@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Fast restart of app services only (no DB/Redis), without rebuilding images.
+# Rebuild and restart app services only (no DB/Redis).
 # Usage:
-#   ./easy_restart                # uses docker-compose.yml
-#   ./easy_restart --alt-ports    # uses docker-compose.alt-ports.yml
+#   ./easy_restart                # uses docker-compose.yml (rebuild api worker frontend admin)
+#   ./easy_restart --alt-ports    # uses docker-compose.alt-ports.yml (rebuild api worker frontend)
 
 set -e
 
@@ -29,14 +29,12 @@ fi
 
 COMPOSE_CMD=("$BASE_CMD" -f "$COMPOSE_FILE")
 
-echo "🔄 Fast restarting app services (skipping DB/Redis) using $COMPOSE_FILE..."
+echo "🛠 Rebuilding services (${SERVICES[*]}) using $COMPOSE_FILE..."
+"${COMPOSE_CMD[@]}" build "${SERVICES[@]}"
 
-# Ensure target services are up without rebuilding or starting dependencies
-"${COMPOSE_CMD[@]}" up -d --no-deps --no-build "${SERVICES[@]}"
+echo "🚀 Starting services without dependencies (DB/Redis unaffected)..."
+"${COMPOSE_CMD[@]}" up -d --no-deps "${SERVICES[@]}"
 
-# Restart worker and api to pick up code changes reliably (frontend/admin are served statically)
-"${COMPOSE_CMD[@]}" restart api worker || true
-
-echo "✅ Done. Databases and Redis were not recreated or rebuilt."
+echo "✅ Done. Databases and Redis were not touched."
 
 
