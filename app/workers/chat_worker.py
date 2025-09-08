@@ -67,14 +67,8 @@ def process_chat_task(
         
         logger.info(f"✅ Successfully parsed task request: {task_req.task_id}")
         
-        logger.info(
-            f"Processing chat task {task_req.task_id} for user {task_req.user_id}",
-            extra={
-                "task_id": task_req.task_id,
-                "user_id": task_req.user_id,
-                "model": chat_req.model,
-                "prompt_length": len(chat_req.prompt),
-            }
+        logger.bind(task_id=task_req.task_id, user_id=task_req.user_id, model=chat_req.model, prompt_length=len(chat_req.prompt)).info(
+            f"Processing chat task {task_req.task_id} for user {task_req.user_id}"
         )
         
         # Run async processing in new event loop
@@ -254,13 +248,8 @@ def process_streaming_chat_task(
         # Parse task request
         task_req = ChatTaskRequest(**task_request)
         
-        logger.info(
-            f"Processing streaming chat task {task_req.task_id}",
-            extra={
-                "task_id": task_req.task_id,
-                "user_id": task_req.user_id,
-                "callback_url": callback_url,
-            }
+        logger.bind(task_id=task_req.task_id, user_id=task_req.user_id, callback_url=callback_url).info(
+            f"Processing streaming chat task {task_req.task_id}"
         )
         
         # Run async streaming in new event loop
@@ -351,13 +340,8 @@ async def _process_streaming_chat_async(
             tokens_used=len(accumulated_response.split()),  # Rough token estimate
         )
         
-        logger.info(
-            f"Streaming chat task {task_request.task_id} completed",
-            extra={
-                "task_id": task_request.task_id,
-                "processing_time": processing_time,
-                "response_length": len(accumulated_response),
-            }
+        logger.bind(task_id=task_request.task_id, processing_time=processing_time, response_length=len(accumulated_response)).info(
+            f"Streaming chat task {task_request.task_id} completed"
         )
         
         return chat_response.dict()

@@ -1,6 +1,6 @@
 """System prompts CRUD and activation endpoints."""
 
-import logging
+from ...utils.loguru_config import get_logger
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from ...services.hybrid_memory_manager import get_hybrid_memory_manager
 from ...api.dependencies import check_user_rate_limit
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/system-prompts", tags=["system-prompts"])
 

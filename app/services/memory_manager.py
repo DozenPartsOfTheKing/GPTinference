@@ -1,7 +1,7 @@
 """Memory management service."""
 
 import json
-import logging
+from ..utils.loguru_config import get_logger
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
@@ -21,7 +21,7 @@ from ..models.memory import (
     UserMemory,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MemoryManager:

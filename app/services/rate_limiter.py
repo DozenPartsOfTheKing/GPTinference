@@ -1,6 +1,6 @@
 """Rate limiting service using Redis."""
 
-import logging
+from ..utils.loguru_config import get_logger
 import time
 from functools import lru_cache
 from typing import Optional
@@ -9,7 +9,7 @@ import redis.asyncio as redis
 
 from ..core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RateLimitExceeded(Exception):

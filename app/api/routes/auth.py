@@ -1,7 +1,6 @@
 """Basic authentication routes (env-based)."""
 
 import hashlib
-import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
@@ -9,9 +8,10 @@ from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel
 
 from ...core.config import settings
+from ...utils.loguru_config import get_logger
 from ..dependencies import get_client_info
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LoginRequest(BaseModel):
@@ -51,13 +51,13 @@ def _issue_token(username: str) -> str:
 @router.post("/login", response_model=LoginResponse)
 async def login(payload: LoginRequest, request: Request, client: Dict[str, Any] = Depends(get_client_info)):
     if not _verify_credentials(payload.username, payload.password):
-        logger.info("Failed login attempt", extra={"ip": client.get("ip"), "ua": client.get("user_agent")})
+        logger.bind(ip=client.get("ip"), ua=client.get("user_agent")).info("Failed login attempt")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = _issue_token(payload.username)
     # 7 days expiry for simplicity (frontend stores token client-side)
     expires_in = int(timedelta(days=7).total_seconds())
-    logger.info("User logged in", extra={"user": payload.username, "ip": client.get("ip")})
+    logger.bind(user=payload.username, ip=client.get("ip")).info("User logged in")
     return LoginResponse(token=token, expires_in=expires_in)
 
 

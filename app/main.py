@@ -1,6 +1,4 @@
 """Main FastAPI application."""
-
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -18,9 +16,8 @@ from .services.rate_limiter import get_rate_limiter, RateLimitExceeded
 from .services.hybrid_memory_manager import close_hybrid_memory_manager
 from .services.database_manager import close_database_manager
 
-# Setup logging
+# Setup logging (Loguru only; setup_logging calls setup_loguru for compat)
 setup_logging()
-setup_loguru()
 logger = get_logger(__name__)
 
 

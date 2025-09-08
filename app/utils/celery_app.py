@@ -1,13 +1,13 @@
 """Celery application configuration."""
 
-import logging
+from ..utils.loguru_config import get_logger
 from functools import lru_cache
 
 from celery import Celery
 
 from ..core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_celery_app() -> Celery:

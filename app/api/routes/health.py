@@ -1,6 +1,6 @@
 """Health check endpoints."""
 
-import logging
+from ...utils.loguru_config import get_logger
 from datetime import datetime
 from typing import Dict, Any
 
@@ -10,7 +10,7 @@ from ...services.ollama_manager import get_ollama_manager, OllamaManager
 from ...services.rate_limiter import get_rate_limiter, RateLimiter
 from ...core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/health", tags=["health"])
 

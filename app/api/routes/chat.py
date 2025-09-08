@@ -8,12 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import StreamingResponse
 
 from ...models.chat import ChatRequest, ChatResponse, TaskStatus, ChatTaskRequest
+from ...utils.loguru_config import get_logger
 from ...services.ollama_manager import get_ollama_manager, OllamaManager
 from ...api.dependencies import check_user_rate_limit, get_client_info
 from ...utils.celery_app import get_celery_app
 from ...workers.chat_worker import process_chat_task, process_streaming_chat_task
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -74,16 +75,8 @@ async def create_chat_task(
                 task_request.dict()
             )
         
-        logger.info(
-            f"Created chat task {task_id} for user {user_id}",
-            extra={
-                "task_id": task_id,
-                "celery_task_id": celery_task.id,
-                "user_id": user_id,
-                "model": request.model,
-                "stream": request.stream,
-                "client_ip": client_info.get("ip"),
-            }
+        logger.bind(task_id=task_id, celery_task_id=celery_task.id, user_id=user_id, model=request.model, stream=request.stream, client_ip=client_info.get("ip")).info(
+            f"Created chat task {task_id} for user {user_id}"
         )
         
         return {
@@ -215,14 +208,8 @@ async def chat_sync(
             retry_count=0,
         )
         
-        logger.info(
-            f"Processing sync chat for user {user_id}",
-            extra={
-                "user_id": user_id,
-                "model": request.model,
-                "prompt_length": len(request.prompt),
-                "client_ip": client_info.get("ip"),
-            }
+        logger.bind(user_id=user_id, model=request.model, prompt_length=len(request.prompt), client_ip=client_info.get("ip")).info(
+            f"Processing sync chat for user {user_id}"
         )
         
         # Import and use the async processing function directly

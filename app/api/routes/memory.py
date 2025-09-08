@@ -1,6 +1,6 @@
 """Memory management endpoints."""
 
-import logging
+from ...utils.loguru_config import get_logger
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -22,7 +22,7 @@ from ...models.memory import (
 from ...services.hybrid_memory_manager import get_hybrid_memory_manager
 from ...api.dependencies import check_user_rate_limit, get_client_info
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 

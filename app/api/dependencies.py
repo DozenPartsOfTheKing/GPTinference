@@ -1,6 +1,6 @@
 """FastAPI dependencies."""
 
-import logging
+from ..utils.loguru_config import get_logger
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from ..services.rate_limiter import RateLimiter, get_rate_limiter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Security scheme for JWT tokens (optional)
 security = HTTPBearer(auto_error=False)

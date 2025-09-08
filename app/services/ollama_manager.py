@@ -1,7 +1,7 @@
 """Ollama API manager with connection pooling and error handling."""
 
 import asyncio
-import logging
+from ..utils.loguru_config import get_logger
 from functools import lru_cache
 from typing import Dict, List, Optional
 
@@ -16,7 +16,7 @@ from ..models.ollama import (
     OllamaResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OllamaConnectionError(Exception):

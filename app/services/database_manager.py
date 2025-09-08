@@ -1,7 +1,7 @@
 """Database manager for PostgreSQL operations."""
 
 import json
-import logging
+from ..utils.loguru_config import get_logger, DatabaseLogContext
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
@@ -11,7 +11,7 @@ from asyncpg import Pool
 
 from ..core.config import get_settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DatabaseManager:

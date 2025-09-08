@@ -1,6 +1,6 @@
 """Models management endpoints."""
 
-import logging
+from ...utils.loguru_config import get_logger
 from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,7 +10,7 @@ from ...services.ollama_manager import get_ollama_manager, OllamaManager
 from ...models.ollama import ModelListResponse
 from ...api.dependencies import check_user_rate_limit
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/models", tags=["models"])
 

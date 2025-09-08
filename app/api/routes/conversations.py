@@ -1,6 +1,6 @@
 """Conversations endpoints tied to the current user."""
 
-import logging
+from ...utils.loguru_config import get_logger
 from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from ...services.hybrid_memory_manager import get_hybrid_memory_manager, HybridMemoryManager
 from ...api.dependencies import check_user_rate_limit
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
