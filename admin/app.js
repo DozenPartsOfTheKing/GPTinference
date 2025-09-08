@@ -71,13 +71,9 @@ class AdminPanel {
             const key = document.getElementById('router-key').value.trim();
             const title = document.getElementById('router-title').value.trim();
             const description = document.getElementById('router-description').value.trim();
-            const classesRaw = document.getElementById('router-classes').value.trim();
-            const examplesRaw = document.getElementById('router-examples').value.trim();
             if (!key) { this.showNotification('Ключ обязателен', 'error'); return; }
-            let classes = [];
-            let examples = [];
-            try { classes = classesRaw ? JSON.parse(classesRaw) : []; } catch { this.showNotification('Неверный JSON классов', 'error'); return; }
-            try { examples = examplesRaw ? JSON.parse(examplesRaw) : []; } catch { this.showNotification('Неверный JSON примеров', 'error'); return; }
+            const classes = this.collectRouterClasses();
+            const examples = this.collectRouterExamples();
             const resp = await fetch(`${this.apiBaseUrl}/router/schemas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -227,6 +223,16 @@ class AdminPanel {
         const refreshRouterBtn = document.getElementById('refresh-router-btn');
         if (refreshRouterBtn) {
             refreshRouterBtn.addEventListener('click', () => this.loadRouter());
+        }
+
+        const addClassBtn = document.getElementById('router-add-class-btn');
+        if (addClassBtn) {
+            addClassBtn.addEventListener('click', () => this.addRouterClassRow());
+        }
+
+        const addExampleBtn = document.getElementById('router-add-example-btn');
+        if (addExampleBtn) {
+            addExampleBtn.addEventListener('click', () => this.addRouterExampleRow());
         }
 
         const routerSaveBtn = document.getElementById('router-save-btn');
@@ -1043,6 +1049,74 @@ class AdminPanel {
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
         }
+    }
+
+    collectRouterClasses() {
+        const list = document.getElementById('router-classes-builder');
+        if (!list) return [];
+        const rows = Array.from(list.querySelectorAll('.router-class-row'));
+        const classes = [];
+        for (const r of rows) {
+            const name = r.querySelector('.rc-name').value.trim();
+            const description = r.querySelector('.rc-desc').value.trim();
+            if (!name) continue;
+            classes.push({ name, description });
+        }
+        return classes;
+    }
+
+    collectRouterExamples() {
+        const list = document.getElementById('router-examples-builder');
+        if (!list) return [];
+        const rows = Array.from(list.querySelectorAll('.router-example-row'));
+        const examples = [];
+        for (const r of rows) {
+            const query = r.querySelector('.re-query').value.trim();
+            const key = r.querySelector('.re-key').value.trim();
+            const val = r.querySelector('.re-value').value.trim();
+            if (!query) continue;
+            let expected = {};
+            if (key && val) expected[key] = val;
+            examples.push({ query, expected });
+        }
+        return examples;
+    }
+
+    addRouterClassRow(initial = { name: '', description: '' }) {
+        const list = document.getElementById('router-classes-builder');
+        if (!list) return;
+        if (list.children.length >= 10) { this.showNotification('Максимум 10 классов', 'warning'); return; }
+        const row = document.createElement('div');
+        row.className = 'router-class-row';
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr 2fr auto';
+        row.style.gap = '8px';
+        row.innerHTML = `
+            <input type="text" class="rc-name" placeholder="name (ключ)" value="${this.escapeHtml(initial.name)}">
+            <input type="text" class="rc-desc" placeholder="description" value="${this.escapeHtml(initial.description)}">
+            <button class="btn btn-danger btn-sm rc-remove">✕</button>
+        `;
+        row.querySelector('.rc-remove').addEventListener('click', () => row.remove());
+        list.appendChild(row);
+    }
+
+    addRouterExampleRow(initial = { query: '', expected_key: '', expected_value: '' }) {
+        const list = document.getElementById('router-examples-builder');
+        if (!list) return;
+        if (list.children.length >= 10) { this.showNotification('Максимум 10 примеров', 'warning'); return; }
+        const row = document.createElement('div');
+        row.className = 'router-example-row';
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '2fr 1fr 1fr auto';
+        row.style.gap = '8px';
+        row.innerHTML = `
+            <input type="text" class="re-query" placeholder="query" value="${this.escapeHtml(initial.query)}">
+            <input type="text" class="re-key" placeholder="expected.class (например internet_search)" value="${this.escapeHtml(initial.expected_key)}">
+            <input type="text" class="re-value" placeholder="expected.value (например билеты москва рязань)" value="${this.escapeHtml(initial.expected_value)}">
+            <button class="btn btn-danger btn-sm re-remove">✕</button>
+        `;
+        row.querySelector('.re-remove').addEventListener('click', () => row.remove());
+        list.appendChild(row);
     }
 }
 

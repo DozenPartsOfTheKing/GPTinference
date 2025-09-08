@@ -276,8 +276,26 @@
                             <input type="text" id="router-key" placeholder="Ключ схемы" style="flex: 1; min-width: 160px;">
                             <input type="text" id="router-title" placeholder="Название" style="flex: 1; min-width: 160px;">
                             <input type="text" id="router-description" placeholder="Описание" style="flex: 2; min-width: 180px;">
-                            <textarea id="router-classes" placeholder='Классы (JSON массив объектов {"name","description"})' style="flex: 1 1 100%; min-height: 80px;"></textarea>
-                            <textarea id="router-examples" placeholder='Примеры (JSON массив объектов {"query","expected"})' style="flex: 1 1 100%; min-height: 100px;"></textarea>
+                            <div style="flex: 1 1 100%; display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <h4 style="margin: 0;">Классы</h4>
+                                    <div>
+                                        <button id="router-add-class-btn" class="btn btn-secondary btn-sm">Добавить класс</button>
+                                        <span style="font-size: 12px; color: var(--text-secondary);">до 10</span>
+                                    </div>
+                                </div>
+                                <div id="router-classes-builder" class="router-builder-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                            </div>
+                            <div style="flex: 1 1 100%; display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <h4 style="margin: 0;">Примеры</h4>
+                                    <div>
+                                        <button id="router-add-example-btn" class="btn btn-secondary btn-sm">Добавить пример</button>
+                                        <span style="font-size: 12px; color: var(--text-secondary);">до 10</span>
+                                    </div>
+                                </div>
+                                <div id="router-examples-builder" class="router-builder-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                            </div>
                             <button id="router-save-btn" class="btn btn-primary"><i class="fas fa-plus"></i> Сохранить схему</button>
                         </div>
                     </div>
