@@ -1058,6 +1058,34 @@
             
             // Добавляем сообщение пользователя
             addMessage(message, 'user');
+            // Параллельно пытаемся определить маршрут через LLM-роутер (только для отображения)
+            (async () => {
+                try {
+                    const activeResp = await fetch(`${API_BASE}/router/schemas/active`);
+                    if (!activeResp.ok) return;
+                    const activeData = await activeResp.json();
+                    if (!activeData || !activeData.active) return;
+                    const routeResp = await fetch(`${API_BASE}/router/route`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: message })
+                    });
+                    if (!routeResp.ok) { setLastUserMessageRouteLabel('Роутер: Обычный'); return; }
+                    const routeData = await routeResp.json();
+                    const selected = routeData && routeData.selected_class;
+                    const classes = (activeData.active.schema && activeData.active.schema.classes) || [];
+                    let label = 'Роутер: Обычный';
+                    if (selected) {
+                        const found = classes.find(c => c && c.name === selected);
+                        if (found) {
+                            label = `Роутер: ${found.description || found.name}`;
+                        }
+                    }
+                    setLastUserMessageRouteLabel(label);
+                } catch (e) {
+                    // В случае ошибки ничего не показываем/оставляем обычный
+                }
+            })();
             input.value = '';
             input.style.height = 'auto';
             
@@ -1213,6 +1241,29 @@
             
             container.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Установить метку маршрута на последнее сообщение пользователя
+        function setLastUserMessageRouteLabel(label) {
+            try {
+                const messagesContainer = document.getElementById('chatMessages');
+                const userMessages = messagesContainer.querySelectorAll('.message.user');
+                if (!userMessages || userMessages.length === 0) return;
+                const last = userMessages[userMessages.length - 1];
+                let meta = last.querySelector('.route-label');
+                if (!meta) {
+                    meta = document.createElement('div');
+                    meta.className = 'route-label';
+                    meta.style.marginLeft = '40px';
+                    meta.style.marginTop = '4px';
+                    meta.style.fontSize = '12px';
+                    meta.style.color = 'var(--text-secondary)';
+                    last.appendChild(meta);
+                }
+                meta.textContent = label;
+            } catch (e) {
+                // ignore
+            }
         }
 
         // Helper to add message to an existing container (for rendering saved conversations)

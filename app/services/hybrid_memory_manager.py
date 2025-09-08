@@ -523,6 +523,86 @@ class HybridMemoryManager:
         except Exception as e:
             logger.error(f"Error getting active system prompt: {e}")
             return None
+
+    # Router Schemas
+    async def list_router_schemas(self) -> List[Dict[str, Any]]:
+        """List stored router schemas (tagged with 'router_schema')."""
+        try:
+            db = await get_database_manager()
+            rows = await db.list_system_memory(memory_type='system_facts', include_expired=False)
+            routers = [row for row in rows if row.get('tags') and 'router_schema' in row['tags']]
+            return routers
+        except Exception as e:
+            logger.error(f"Error listing router schemas: {e}")
+            return []
+
+    async def save_router_schema(
+        self,
+        key: str,
+        schema_value: Dict[str, Any],
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        created_by: Optional[str] = None,
+    ) -> bool:
+        """Create or update a router schema."""
+        value = {
+            "title": title or key,
+            "description": description,
+            "schema": schema_value,
+            "created_by": created_by,
+        }
+        try:
+            db = await get_database_manager()
+            return await db.set_system_memory(
+                key=key,
+                value=value,
+                memory_type='system_facts',
+                priority='medium',
+                tags=['router_schema'],
+                ttl_hours=None,
+            )
+        except Exception as e:
+            logger.error(f"Error saving router schema: {e}")
+            return False
+
+    async def delete_router_schema(self, key: str) -> bool:
+        """Delete a stored router schema by key."""
+        try:
+            db = await get_database_manager()
+            return await db.delete_system_memory(key)
+        except Exception as e:
+            logger.error(f"Error deleting router schema: {e}")
+            return False
+
+    async def set_active_router_schema(self, key: str) -> bool:
+        """Mark a stored router schema as active by saving a pointer key."""
+        try:
+            schema = await self.get_system_memory(key)
+            if not schema:
+                return False
+            return await self.set_system_memory(
+                key='router_active',
+                value={"key": key},
+                memory_type='preferences',
+            )
+        except Exception as e:
+            logger.error(f"Error setting active router schema: {e}")
+            return False
+
+    async def get_active_router_schema(self) -> Optional[Dict[str, Any]]:
+        """Return the active router schema content if set."""
+        try:
+            pointer = await self.get_system_memory('router_active')
+            if not pointer or not isinstance(pointer, dict) or 'key' not in pointer:
+                return None
+            key = pointer['key']
+            value = await self.get_system_memory(key)
+            if value is None:
+                return None
+            return {"key": key, **(value if isinstance(value, dict) else {"schema": value})}
+        except Exception as e:
+            logger.error(f"Error getting active router schema: {e}")
+            return None
     
     # Statistics
     

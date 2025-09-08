@@ -36,6 +36,9 @@
                     <li><a href="#system" class="nav-link" data-section="system">
                         <i class="fas fa-server"></i> Система
                     </a></li>
+                    <li><a href="#router" class="nav-link" data-section="router">
+                        <i class="fas fa-route"></i> Роутер
+                    </a></li>
                     <li><a href="#logs" class="nav-link" data-section="logs">
                         <i class="fas fa-file-alt"></i> Логи
                     </a></li>
@@ -256,6 +259,44 @@
                         <div class="info-content" id="system-prompts-list">
                             <div class="loading">Загрузка...</div>
                         </div>
+                    </div>
+                </section>
+
+                <!-- Router Section -->
+                <section id="router-section" class="content-section">
+                    <div class="section-header">
+                        <h2>LLM Роутер намерений</h2>
+                        <button id="refresh-router-btn" class="btn btn-secondary">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                    <div class="info-card">
+                        <h3>Создать/обновить схему</h3>
+                        <div class="section-actions" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <input type="text" id="router-key" placeholder="Ключ схемы" style="flex: 1; min-width: 160px;">
+                            <input type="text" id="router-title" placeholder="Название" style="flex: 1; min-width: 160px;">
+                            <input type="text" id="router-description" placeholder="Описание" style="flex: 2; min-width: 180px;">
+                            <textarea id="router-classes" placeholder='Классы (JSON массив объектов {"name","description"})' style="flex: 1 1 100%; min-height: 80px;"></textarea>
+                            <textarea id="router-examples" placeholder='Примеры (JSON массив объектов {"query","expected"})' style="flex: 1 1 100%; min-height: 100px;"></textarea>
+                            <button id="router-save-btn" class="btn btn-primary"><i class="fas fa-plus"></i> Сохранить схему</button>
+                        </div>
+                    </div>
+                    <div class="info-card" style="margin-top: 16px;">
+                        <h3>Активная схема</h3>
+                        <div id="router-active" class="info-content"><div class="loading">Загрузка...</div></div>
+                    </div>
+                    <div class="info-card" style="margin-top: 16px;">
+                        <h3>Схемы</h3>
+                        <div id="router-schemas-list" class="info-content"><div class="loading">Загрузка...</div></div>
+                    </div>
+                    <div class="info-card" style="margin-top: 16px;">
+                        <h3>Тест маршрутизации</h3>
+                        <div class="section-actions" style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <input type="text" id="router-test-input" placeholder="Введите запрос пользователя" style="flex: 2; min-width: 240px;">
+                            <input type="text" id="router-test-schema" placeholder="Ключ схемы (опционально)" style="flex: 1; min-width: 160px;">
+                            <button id="router-test-btn" class="btn btn-secondary"><i class="fas fa-play"></i> Запустить</button>
+                        </div>
+                        <pre id="router-test-result" style="background: var(--bg-tertiary); padding: 12px; border-radius: 8px; overflow: auto; max-height: 240px;"><code></code></pre>
                     </div>
                 </section>
 

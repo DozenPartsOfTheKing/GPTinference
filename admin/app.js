@@ -12,6 +12,139 @@ class AdminPanel {
         this.init();
     }
 
+    async loadRouter() {
+        try {
+            // Active schema
+            const activeResp = await fetch(`${this.apiBaseUrl}/router/schemas/active`);
+            const activeData = activeResp.ok ? await activeResp.json() : { active: null };
+            const activeEl = document.getElementById('router-active');
+            const active = activeData.active;
+            if (active) {
+                const classes = (active.schema?.classes || []).map(c => `${c.name}`).join(', ');
+                activeEl.innerHTML = `
+                    <div class="info-item"><span class="info-label">Ключ:</span> <span class="info-value">${active.key}</span></div>
+                    <div class="info-item"><span class="info-label">Название:</span> <span class="info-value">${active.title || active.key}</span></div>
+                    <div class="info-item"><span class="info-label">Классы:</span> <span class="info-value">${this.escapeHtml(classes)}</span></div>
+                `;
+            } else {
+                activeEl.innerHTML = '<div class="no-data">Активная схема не выбрана</div>';
+            }
+
+            // List schemas
+            const listResp = await fetch(`${this.apiBaseUrl}/router/schemas`);
+            const schemas = listResp.ok ? await listResp.json() : [];
+            const listEl = document.getElementById('router-schemas-list');
+            if (!schemas || schemas.length === 0) {
+                listEl.innerHTML = '<div class="no-data">Схемы не найдены</div>';
+            } else {
+                listEl.innerHTML = schemas.map(item => {
+                    const isActive = active && active.key === item.key;
+                    const title = (item.value && item.value.title) || item.title || item.key;
+                    const descr = (item.value && item.value.description) || item.description || '';
+                    const classes = (item.value?.schema?.classes || item.schema?.classes || []).map(c => c.name).join(', ');
+                    return `
+                        <div class="memory-item">
+                            <div class="memory-item-info">
+                                <div class="memory-item-title">${title} ${isActive ? '<span class="badge">Активная</span>' : ''}</div>
+                                <div class="memory-item-meta">Ключ: ${item.key} ${descr ? '• ' + this.escapeHtml(descr) : ''}</div>
+                                <div class="memory-item-content" style="color: var(--text-secondary); margin-top: 6px;">Классы: ${this.escapeHtml(classes)}</div>
+                            </div>
+                            <div class="memory-item-actions">
+                                <button class="btn btn-secondary btn-sm" onclick="adminPanel.activateRouterSchema('${item.key}')"><i class="fas fa-check"></i></button>
+                                <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteRouterSchema('${item.key}')"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (e) {
+            console.error('Error loading router:', e);
+            const activeEl = document.getElementById('router-active');
+            const listEl = document.getElementById('router-schemas-list');
+            if (activeEl) activeEl.innerHTML = '<div class="error">Ошибка загрузки</div>';
+            if (listEl) listEl.innerHTML = '<div class="error">Ошибка загрузки</div>';
+        }
+    }
+
+    async saveRouterSchema() {
+        try {
+            const key = document.getElementById('router-key').value.trim();
+            const title = document.getElementById('router-title').value.trim();
+            const description = document.getElementById('router-description').value.trim();
+            const classesRaw = document.getElementById('router-classes').value.trim();
+            const examplesRaw = document.getElementById('router-examples').value.trim();
+            if (!key) { this.showNotification('Ключ обязателен', 'error'); return; }
+            let classes = [];
+            let examples = [];
+            try { classes = classesRaw ? JSON.parse(classesRaw) : []; } catch { this.showNotification('Неверный JSON классов', 'error'); return; }
+            try { examples = examplesRaw ? JSON.parse(examplesRaw) : []; } catch { this.showNotification('Неверный JSON примеров', 'error'); return; }
+            const resp = await fetch(`${this.apiBaseUrl}/router/schemas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, title, description, classes, examples })
+            });
+            if (resp.ok) {
+                this.showNotification('Схема сохранена', 'success');
+                await this.loadRouter();
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                this.showNotification(data.detail || 'Ошибка сохранения схемы', 'error');
+            }
+        } catch (e) {
+            this.showNotification('Ошибка сохранения схемы', 'error');
+        }
+    }
+
+    async activateRouterSchema(key) {
+        try {
+            const resp = await fetch(`${this.apiBaseUrl}/router/schemas/${encodeURIComponent(key)}/activate`, { method: 'PUT' });
+            if (resp.ok) {
+                this.showNotification('Схема активирована', 'success');
+                await this.loadRouter();
+            } else {
+                this.showNotification('Не удалось активировать схему', 'error');
+            }
+        } catch (e) {
+            this.showNotification('Ошибка активации схемы', 'error');
+        }
+    }
+
+    async deleteRouterSchema(key) {
+        this.showConfirmModal('Удалить схему', `Удалить схему роутера ${key}?`, async () => {
+            try {
+                const resp = await fetch(`${this.apiBaseUrl}/router/schemas/${encodeURIComponent(key)}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    this.showNotification('Схема удалена', 'success');
+                    await this.loadRouter();
+                } else {
+                    this.showNotification('Не удалось удалить схему', 'error');
+                }
+            } catch (e) {
+                this.showNotification('Ошибка удаления схемы', 'error');
+            }
+        });
+    }
+
+    async testRouter() {
+        try {
+            const query = document.getElementById('router-test-input').value.trim();
+            const schemaKey = document.getElementById('router-test-schema').value.trim();
+            if (!query) { this.showNotification('Введите запрос', 'error'); return; }
+            const resp = await fetch(`${this.apiBaseUrl}/router/route`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, schema_key: schemaKey || undefined })
+            });
+            const data = await resp.json();
+            const pre = document.querySelector('#router-test-result code');
+            pre.textContent = JSON.stringify(data, null, 2);
+            if (resp.ok) this.showNotification('Маршрутизация выполнена', 'success');
+            else this.showNotification(data.detail || 'Ошибка маршрутизации', 'error');
+        } catch (e) {
+            this.showNotification('Ошибка маршрутизации', 'error');
+        }
+    }
+
     init() {
         this.setupEventListeners();
         this.setupNavigation();
@@ -91,6 +224,21 @@ class AdminPanel {
             this.hideNotification();
         });
 
+        const refreshRouterBtn = document.getElementById('refresh-router-btn');
+        if (refreshRouterBtn) {
+            refreshRouterBtn.addEventListener('click', () => this.loadRouter());
+        }
+
+        const routerSaveBtn = document.getElementById('router-save-btn');
+        if (routerSaveBtn) {
+            routerSaveBtn.addEventListener('click', () => this.saveRouterSchema());
+        }
+
+        const routerTestBtn = document.getElementById('router-test-btn');
+        if (routerTestBtn) {
+            routerTestBtn.addEventListener('click', () => this.testRouter());
+        }
+
         // Search
         document.getElementById('conversation-search').addEventListener('input', (e) => {
             this.searchConversations(e.target.value);
@@ -127,7 +275,8 @@ class AdminPanel {
             conversations: 'Диалоги',
             users: 'Пользователи',
             system: 'Система',
-            logs: 'Логи'
+            logs: 'Логи',
+            router: 'Роутер'
         };
         document.getElementById('page-title').textContent = titles[section] || section;
 
@@ -157,6 +306,9 @@ class AdminPanel {
                 break;
             case 'logs':
                 this.loadLogs();
+                break;
+            case 'router':
+                this.loadRouter();
                 break;
         }
     }
