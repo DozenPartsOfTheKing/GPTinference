@@ -855,7 +855,7 @@
         // Загрузка списка моделей
         async function loadModels() {
             try {
-                const response = await fetch(`${API_BASE}/models/`);
+                const response = await fetch(`${API_BASE}/models/?force_refresh=true`);
                 const data = await response.json();
                 
                 const modelsList = document.getElementById('modelsList');
