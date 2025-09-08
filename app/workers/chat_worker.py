@@ -486,8 +486,9 @@ async def _build_context_prompt(
         if conversation and conversation.messages:
             conversation_context.append("История диалога:")
             
-            # Add recent messages (skip system messages)
-            recent_messages = [msg for msg in conversation.messages[-6:] if msg.role != "system"]
+            # Add recent messages (skip system messages) with newest first
+            non_system_messages = [msg for msg in conversation.messages if msg.role != "system"]
+            recent_messages = non_system_messages[-6:][::-1]
             for msg in recent_messages:
                 role_name = "Пользователь" if msg.role == "user" else "Ассистент"
                 conversation_context.append(f"{role_name}: {msg.content}")
