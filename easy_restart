@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Fast restart of app services only (no DB/Redis), without rebuilding images.
+# Usage:
+#   ./easy_restart                # uses docker-compose.yml
+#   ./easy_restart --alt-ports    # uses docker-compose.alt-ports.yml
+
+set -e
+
+# Determine compose command
+if command -v docker-compose &> /dev/null; then
+    BASE_CMD="docker-compose"
+elif docker compose version &> /dev/null 2>&1; then
+    BASE_CMD="docker compose"
+else
+    echo "Docker Compose not found. Install Docker Desktop or docker-compose." >&2
+    exit 1
+fi
+
+# Select compose file and services
+COMPOSE_FILE="docker-compose.yml"
+SERVICES=(api worker frontend admin)
+
+if [[ "$1" == "--alt" || "$1" == "--alt-ports" ]]; then
+    COMPOSE_FILE="docker-compose.alt-ports.yml"
+    SERVICES=(api worker frontend)
+    shift
+fi
+
+COMPOSE_CMD=("$BASE_CMD" -f "$COMPOSE_FILE")
+
+echo "🔄 Fast restarting app services (skipping DB/Redis) using $COMPOSE_FILE..."
+
+# Ensure target services are up without rebuilding or starting dependencies
+"${COMPOSE_CMD[@]}" up -d --no-deps --no-build "${SERVICES[@]}"
+
+# Restart worker and api to pick up code changes reliably (frontend/admin are served statically)
+"${COMPOSE_CMD[@]}" restart api worker || true
+
+echo "✅ Done. Databases and Redis were not recreated or rebuilt."
+
+
