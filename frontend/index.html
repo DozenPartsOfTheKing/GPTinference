@@ -179,7 +179,7 @@
             border-bottom: 1px solid var(--border-primary);
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             background: var(--bg-primary);
         }
 
@@ -582,11 +582,16 @@
                         Новый диалог
                     </div>
                 </div>
-                <select class="model-selector" id="modelSelector">
-                    <option value="llama3.2">LLaMA 3.2</option>
-                    <option value="mistral">Mistral</option>
-                    <option value="codellama">CodeLLaMA</option>
-                </select>
+                <div>
+                    <select class="model-selector" id="modelSelector">
+                        <option value="llama3.2">LLaMA 3.2</option>
+                        <option value="mistral">Mistral</option>
+                        <option value="codellama">CodeLLaMA</option>
+                    </select>
+                    <button class="theme-toggle" onclick="openLogin()" id="loginButton" style="margin-left:8px">
+                        <i class="fas fa-user"></i> <span id="loginButtonText">Войти</span>
+                    </button>
+                </div>
             </div>
 
             <div class="chat-messages" id="chatMessages">
@@ -649,6 +654,7 @@
     <script>
         const API_BASE = 'http://localhost:8000';
         let messageCount = 0;
+        let authToken = localStorage.getItem('auth_token') || null;
 
         // Theme management
         function initTheme() {
@@ -736,6 +742,8 @@
 
             // Периодическая проверка статуса
             setInterval(checkSystemHealth, 30000);
+
+            updateLoginUI();
         });
 
         // Проверка здоровья системы
@@ -798,6 +806,67 @@
             }
         }
 
+        function updateLoginUI() {
+            const btnText = document.getElementById('loginButtonText');
+            if (btnText) {
+                btnText.textContent = authToken ? 'Выйти' : 'Войти';
+            }
+        }
+
+        function openLogin() {
+            if (authToken) {
+                localStorage.removeItem('auth_token');
+                authToken = null;
+                updateLoginUI();
+                return;
+            }
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay active';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header">
+                        <div class="modal-title">Вход</div>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                    </div>
+                    <div class="modal-content">
+                        <div style="display:flex; flex-direction:column; gap:12px;">
+                            <input id="loginUsername" placeholder="Логин" style="padding:10px; border:1px solid var(--border-primary); border-radius:8px; background:var(--input-bg); color:var(--text-primary);" />
+                            <input id="loginPassword" placeholder="Пароль" type="password" style="padding:10px; border:1px solid var(--border-primary); border-radius:8px; background:var(--input-bg); color:var(--text-primary);" />
+                            <button id="loginSubmit" class="new-chat-btn">Войти</button>
+                            <div id="loginError" style="color:#ef4444; font-size:13px;"></div>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            overlay.querySelector('#loginSubmit').addEventListener('click', doLogin);
+            overlay.querySelector('#loginPassword').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+        }
+
+        async function doLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = '';
+            try {
+                const resp = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                if (!resp.ok) {
+                    const t = await resp.text();
+                    throw new Error(t || 'Ошибка входа');
+                }
+                const data = await resp.json();
+                authToken = data.token;
+                localStorage.setItem('auth_token', authToken);
+                document.querySelector('.modal-overlay.active')?.remove();
+                updateLoginUI();
+            } catch (e) {
+                errorEl.textContent = 'Неверный логин или пароль';
+            }
+        }
+
         // Отправка сообщения
         // Глобальная переменная для conversation_id
         let currentConversationId = null;
@@ -809,6 +878,24 @@
             if (!message) return;
             
             const model = document.getElementById('modelSelector').value;
+
+            if (!authToken) {
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay active';
+                overlay.innerHTML = `
+                    <div class="modal">
+                        <div class="modal-header">
+                            <div class="modal-title">Требуется вход</div>
+                            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                        </div>
+                        <div class="modal-content">
+                            <p style="margin-bottom:12px;">Тебе надо войти</p>
+                            <button class="new-chat-btn" onclick="document.querySelector('.modal-overlay.active')?.remove(); openLogin();">Войти</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlay);
+                return;
+            }
             
             // Генерируем conversation_id если его нет
             if (!currentConversationId) {
@@ -852,6 +939,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
                     },
                     body: JSON.stringify(payload)
                 });

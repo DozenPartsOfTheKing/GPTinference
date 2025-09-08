@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="dev-secret-key", env="SECRET_KEY")
     algorithm: str = Field(default="HS256", env="ALGORITHM")
     access_token_expire_minutes: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    # Basic auth (env-provided creds)
+    auth_username: str = Field(default="admin", env="AUTH_USERNAME")
+    auth_salt: str = Field(default="dev-salt", env="AUTH_SALT")
+    auth_password_hash: str = Field(default="", env="AUTH_PASSWORD_HASH")
     
     # Monitoring
     enable_metrics: bool = Field(default=True, env="ENABLE_METRICS")

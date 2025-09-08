@@ -88,6 +88,9 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - DEBUG=true
       - LOG_LEVEL=INFO
+      - AUTH_USERNAME=admin
+      - AUTH_SALT=static_salt_2025
+      - AUTH_PASSWORD_HASH=90944d17062465eca19232970eb657f17bee03faf24dc815cd25752aecba10ef
     volumes:
       - ./logs:/app/logs
       - ./app:/app/app:ro
@@ -122,6 +125,9 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - DEBUG=true
       - LOG_LEVEL=INFO
+      - AUTH_USERNAME=admin
+      - AUTH_SALT=static_salt_2025
+      - AUTH_PASSWORD_HASH=90944d17062465eca19232970eb657f17bee03faf24dc815cd25752aecba10ef
     volumes:
       - ./logs:/app/logs
       - ./app:/app/app:ro
