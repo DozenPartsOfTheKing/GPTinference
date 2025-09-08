@@ -512,6 +512,72 @@
             }
         }
 
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(2px);
+            z-index: 10002;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+        }
+
+        .modal {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 10px 30px var(--shadow);
+            overflow: hidden;
+            transform: translateY(8px);
+            animation: modalIn 180ms ease-out;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-primary);
+            background: var(--bg-primary);
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .modal-content {
+            padding: 16px;
+            background: var(--bg-primary);
+        }
+
+        @keyframes modalIn {
+            from { transform: translateY(16px); opacity: 0.9; }
+            to { transform: translateY(8px); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -533,6 +599,7 @@
                     <i class="fas fa-comment"></i>
                     Текущий чат
                 </div>
+                <div id="conversationList"></div>
             </div>
 
             <div class="sidebar-footer">
@@ -655,6 +722,7 @@
         const API_BASE = 'http://localhost:8000';
         let messageCount = 0;
         let authToken = localStorage.getItem('auth_token') || null;
+        let currentConversationId = null; // remains global
 
         // Theme management
         function initTheme() {
@@ -744,6 +812,9 @@
             setInterval(checkSystemHealth, 30000);
 
             updateLoginUI();
+            if (authToken) {
+                loadConversationList();
+            }
         });
 
         // Проверка здоровья системы
@@ -806,6 +877,73 @@
             }
         }
 
+        async function loadConversationList() {
+            if (!authToken) {
+                document.getElementById('conversationList').innerHTML = '';
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/conversations/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!resp.ok) throw new Error('failed');
+                const data = await resp.json();
+                const list = data.items || [];
+                const container = document.getElementById('conversationList');
+                container.innerHTML = list.map(item => {
+                    const id = item.conversation_id || item.conversationId || '';
+                    const title = item.title || (id ? `Диалог ${id.substring(0,8)}...` : 'Диалог');
+                    return `<div class="chat-history-item" data-id="${id}" onclick="selectConversation('${id}')">
+                        <i class="fas fa-comments"></i>
+                        <span>${title}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                console.warn('Failed to load conversations');
+            }
+        }
+
+        function selectConversation(id) {
+            if (!id) return;
+            currentConversationId = id;
+            const items = document.querySelectorAll('.chat-history-item');
+            items.forEach(el => el.classList.remove('active'));
+            const el = document.querySelector(`.chat-history-item[data-id="${id}"]`);
+            if (el) el.classList.add('active');
+            // Load messages
+            loadConversationMessages(id);
+            const conversationIdElement = document.getElementById('conversationId');
+            if (conversationIdElement) {
+                conversationIdElement.textContent = `ID: ${id.substring(0, 20)}...`;
+            }
+        }
+
+        async function loadConversationMessages(id) {
+            if (!authToken) return;
+            try {
+                const resp = await fetch(`${API_BASE}/conversations/${id}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!resp.ok) throw new Error('failed');
+                const data = await resp.json();
+                renderMessages(data.messages || []);
+            } catch (e) {
+                console.warn('Failed to load conversation');
+            }
+        }
+
+        function renderMessages(messages) {
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = '';
+            const container = document.createElement('div');
+            container.className = 'messages-container';
+            messages.forEach(m => {
+                addMessageToContainer(container, m.content, m.role);
+            });
+            messagesContainer.appendChild(container);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
         function updateLoginUI() {
             const btnText = document.getElementById('loginButtonText');
             if (btnText) {
@@ -818,6 +956,7 @@
                 localStorage.removeItem('auth_token');
                 authToken = null;
                 updateLoginUI();
+                loadConversationList();
                 return;
             }
             const overlay = document.createElement('div');
@@ -862,14 +1001,13 @@
                 localStorage.setItem('auth_token', authToken);
                 document.querySelector('.modal-overlay.active')?.remove();
                 updateLoginUI();
+                loadConversationList();
             } catch (e) {
                 errorEl.textContent = 'Неверный логин или пароль';
             }
         }
 
         // Отправка сообщения
-        // Глобальная переменная для conversation_id
-        let currentConversationId = null;
         
         async function sendMessage() {
             const input = document.getElementById('chatInput');
@@ -907,6 +1045,8 @@
                 if (conversationIdElement) {
                     conversationIdElement.textContent = `ID: ${currentConversationId.substring(0, 20)}...`;
                 }
+                // После первого сообщения обновим список диалогов
+                setTimeout(loadConversationList, 500);
             }
             
             // Добавляем сообщение пользователя
@@ -1070,6 +1210,32 @@
             
             container.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Helper to add message to an existing container (for rendering saved conversations)
+        function addMessageToContainer(container, content, sender, isError = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = 'message-content-wrapper';
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            if (isError) messageContent.style.color = '#dc2626';
+            const paragraphs = (content || '').split('\n\n');
+            paragraphs.forEach(paragraph => {
+                if (paragraph.trim()) {
+                    const p = document.createElement('p');
+                    p.textContent = paragraph.trim();
+                    messageContent.appendChild(p);
+                }
+            });
+            messageWrapper.appendChild(avatar);
+            messageWrapper.appendChild(messageContent);
+            messageDiv.appendChild(messageWrapper);
+            container.appendChild(messageDiv);
         }
 
         // Показать/скрыть индикатор печатания

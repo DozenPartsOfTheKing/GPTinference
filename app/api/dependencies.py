@@ -44,6 +44,11 @@ async def get_current_user(
             
             # Check for simple user ID format
             if token.startswith("user_"):
+                # Normalize tokens like 'user_<name>_session_...' to stable 'user_<name>'
+                if "_session_" in token:
+                    stable_user = token.split("_session_")[0]
+                    logger.debug(f"Authenticated user (normalized): {stable_user}")
+                    return stable_user
                 logger.debug(f"Authenticated user: {token}")
                 return token
             
